@@ -34,7 +34,7 @@ st.markdown("""<style>
 }
 html, body, [class*="css"] { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 h1, h2, h3 { font-family: Montserrat, Inter, sans-serif; letter-spacing: -0.02em; }
-.block-container { padding-top: 1rem; padding-bottom: 5.5rem; max-width: 1360px; }
+..block-container { padding-top: 1rem; padding-bottom: 5.5rem; max-width: 1360px; }
 a { color: var(--sp-green); }
 .material-symbols-rounded { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
 
@@ -177,23 +177,22 @@ div[data-testid="stExpander"] { background: var(--sp-card); border: 1px solid va
 @media (max-width: 1100px) { .sp-shell { grid-template-columns: 240px 1fr; } .sp-panel-right { display:none; } }
 @media (max-width: 760px) { .sp-shell { grid-template-columns: 1fr; } .sp-panel { min-height: auto; } }
 
-/* Full-width top bar — fixed at top */
+/* Top bar — sits in normal flow, full width */
 .sp-topbar-fixed {
-  position: fixed; top: 0; left: 0; right: 0; height: 56px;
-  background: #000; border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: relative;
+  height: 56px;
+  background: #000;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
   display:flex; align-items:center; justify-content:space-between; gap:16px;
-  padding: 0 14px; z-index: 1001;
+  padding: 0 14px;
+  margin-bottom: 12px;
 }
-.block-container { padding-top: 72px !important; }
-/* Sidebar — fixed below top bar, collapsible via toggle */
+/* Sidebar — normal Streamlit sidebar, no fixed offset */
 section[data-testid="stSidebar"] {
-  top: 56px !important;
-  height: calc(100vh - 56px) !important;
   background: #000 !important;
-  z-index: 999 !important;
 }
-/* Show the header so toggle button is visible */
-header[data-testid="stHeader"] { visibility: visible !important; height: auto !important; background: transparent !important; }
+header[data-testid="stHeader"] { visibility: hidden; height: 0; }
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none !important; }
@@ -812,23 +811,21 @@ st.markdown("""
 .sp-pill-outer {
   flex: 1 1 auto; display:flex; justify-content:center; min-width: 0;
 }
-.sp-pill {
+.sp-pill-inner {
   width:100%; max-width:560px; height:48px; border-radius:999px;
   background:#2A2A2A; border:1px solid rgba(255,255,255,0.08);
-  display:flex; align-items:center; gap:10px; padding: 0 14px;
+  display:flex; align-items:center; gap:8px; padding: 0 12px;
   box-shadow: 0 1px 6px rgba(0,0,0,0.35);
 }
-/* Style the inner Streamlit text_input to be invisible border */
-.sp-pill div[data-testid="stTextInput"] { flex:1; }
-.sp-pill div[data-testid="stTextInput"] > div { border:none !important; background:transparent !important; }
-.sp-pill div[data-testid="stTextInput"] input {
+.sp-pill-inner div[data-testid="stTextInput"] { flex:1; }
+.sp-pill-inner div[data-testid="stTextInput"] > div { border:none !important; background:transparent !important; }
+.sp-pill-inner div[data-testid="stTextInput"] input {
   background:transparent !important; border:none !important; color:#fff !important; font-size:14px !important;
   padding: 0 !important; height: 28px;
 }
-.sp-pill div[data-testid="stTextInput"] input::placeholder { color:#9AA0B5 !important; }
-.sp-pill div[data-testid="stTextInput"] input:focus { box-shadow:none !important; border:none !important; }
-.sp-pill .icon { color:#B3B3B3; font-size:20px; flex-shrink:0; }
-.sp-divider { width:1px; height:24px; background: rgba(255,255,255,0.14); margin: 0 4px; flex-shrink:0; }
+.sp-pill-inner div[data-testid="stTextInput"] input::placeholder { color:#9AA0B5 !important; }
+.sp-pill-inner div[data-testid="stTextInput"] input:focus { box-shadow:none !important; border:none !important; }
+.sp-divider { width:1px; height:24px; background: rgba(255,255,255,0.14); margin: 0 2px; flex-shrink:0; }
 .sp-topbar-right { display:flex; align-items:center; gap:8px; flex: 0 0 auto; }
 .sp-btn {
   height:36px; padding:0 16px; border-radius:999px; border:none;
@@ -843,16 +840,26 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Fixed full-width top bar (spans entire width, sidebar sits below it)
-st.markdown('<div class="sp-topbar-fixed"><div class="sp-topbar-left"><div class="sp-logo">♫</div><div class="sp-home"><span class="material-symbols-rounded">home</span></div></div><div class="sp-pill-outer"><div class="sp-pill"><span class="material-symbols-rounded icon">search</span>', unsafe_allow_html=True)
-st.text_input(
-    "global_search_input",
-    key="global_search_input",
-    placeholder="What do you want to play?",
-    label_visibility="collapsed",
-    on_change=_on_global_search,
-)
-st.markdown('<span class="sp-divider"></span><span class="material-symbols-rounded icon">browse</span></div></div><div class="sp-topbar-right"><button class="sp-btn">Explore Premium</button><button class="sp-icon-btn"><span class="material-symbols-rounded" style="font-size:18px;">download</span> Install App</button><span class="sp-icon-btn"><span class="material-symbols-rounded">notifications</span></span><span class="sp-icon-btn"><span class="material-symbols-rounded">groups</span></span><span class="sp-avatar">N</span></div></div>', unsafe_allow_html=True)
+# Top bar — single container with pill containing the input (no split HTML)
+with st.container():
+    st.markdown('<div class="sp-topbar-fixed"><div class="sp-topbar-left"><div class="sp-logo">♫</div><div class="sp-home"><span class="material-symbols-rounded">home</span></div></div><div class="sp-pill-outer"><div class="sp-pill-inner">', unsafe_allow_html=True)
+    # Use columns inside the pill area: search icon | input | divider | browse
+    p1, p2, p3, p4 = st.columns([0.15, 5, 0.15, 0.4], vertical_alignment="center", gap="small")
+    with p1:
+        st.markdown('<span class="material-symbols-rounded icon" style="color:#B3B3B3; font-size:20px;">search</span>', unsafe_allow_html=True)
+    with p2:
+        st.text_input(
+            "global_search_input",
+            key="global_search_input",
+            placeholder="What do you want to play?",
+            label_visibility="collapsed",
+            on_change=_on_global_search,
+        )
+    with p3:
+        st.markdown('<span class="sp-divider"></span>', unsafe_allow_html=True)
+    with p4:
+        st.markdown('<span class="material-symbols-rounded icon" style="color:#B3B3B3; font-size:20px;">browse</span>', unsafe_allow_html=True)
+    st.markdown('</div></div><div class="sp-topbar-right"><button class="sp-btn">Explore Premium</button><span class="sp-icon-btn"><span class="material-symbols-rounded" style="font-size:18px;">download</span></span><span class="sp-icon-btn"><span class="material-symbols-rounded">notifications</span></span><span class="sp-icon-btn"><span class="material-symbols-rounded">groups</span></span><span class="sp-avatar">N</span></div></div>', unsafe_allow_html=True)
 
 HERO_TITLE = {
     "Cari lagu": ("Cari Lagu", "Temukan track favorit, preview 30 detik, dan unduh instan.", "search"),
