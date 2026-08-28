@@ -18,9 +18,8 @@ st.set_page_config(
 )
 
 # --- Light modern theme + minimal iconography ---
-st.markdown("""
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,-50..200" />
-<style>
+# Use st.html for raw HTML injection (renders <link> correctly), keep <style> in markdown for CSS
+st.markdown("""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap');
 :root {
   --sv-accent: #4F46E5;
@@ -87,6 +86,7 @@ div[data-testid="stExpander"] { border: 1px solid var(--sv-border); border-radiu
 .sv-chip { display:inline-flex; align-items:center; gap:6px; background:#F1F5F9; border:1px solid #E2E8F0; color:#334155; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
 .sv-chip-accent { background:#EEF2FF; border-color:#C7D2FE; color:#3730A3; }
 </style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,-50..200" />
 """, unsafe_allow_html=True)
 
 # Debug panel sementara untuk membantu tracing klik tombol
