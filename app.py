@@ -887,12 +887,9 @@ if st.session_state.get("download_error"):
 # 1) Cari lagu di iTunes
 # --------------------------------------------------------------------------- #
 if menu == "Cari lagu":
-    # Wrapped in main panel — opened before; content inside sp-panel-main
+    # Wrapped in main panel — sidebar is Your Library, so main needs only 2 cols
     st.markdown('<div class="sp-shell">', unsafe_allow_html=True)
-    # We render the whole 3-column shell via columns so right/left panels are not sidebar
-    # Use st.columns for layout stability
-    col_left_dummy, col_main, col_right = st.columns([0, 7, 3], vertical_alignment="top", gap="small")
-    # Left is handled by st.sidebar (Your Library) — no duplicate here
+    col_main, col_right = st.columns([7, 3], vertical_alignment="top", gap="small")
     with col_main:
         st.markdown('<div class="sp-panel sp-panel-main">', unsafe_allow_html=True)
 
