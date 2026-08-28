@@ -16,6 +16,11 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+# Force sidebar expanded on every rerun
+try:
+    st.session_state["sidebar_expanded"] = True
+except Exception:
+    pass
 
 # --- Spotify-inspired theme ---
 st.markdown("""<style>
@@ -185,11 +190,19 @@ div[data-testid="stExpander"] { background: var(--sp-card); border: 1px solid va
   display:flex; align-items:center; justify-content:space-between; gap:16px;
   padding: 0 14px; z-index: 1000;
 }
-/* Push sidebar below top bar & hide collapse control */
-section[data-testid="stSidebar"] { top: 56px !important; height: calc(100vh - 56px) !important; }
+/* Keep sidebar always visible and below top bar */
+section[data-testid="stSidebar"] {
+  display: flex !important; visibility: visible !important; opacity: 1 !important;
+  transform: none !important;
+  top: 56px !important; height: calc(100vh - 56px) !important;
+}
+section[data-testid="stSidebar"][aria-expanded="false"] {
+  display: flex !important; visibility: visible !important;
+}
 section[data-testid="stSidebar"] > div { padding-top: 8px !important; }
-button[data-testid="stSidebarCollapseButton"],
-[data-testid="collapsedControl"] { display: none !important; }
+/* Hide only the collapse button, not the sidebar itself */
+button[data-testid="stSidebarCollapseButton"] { display: none !important; }
+button[kind="headerNoPadding"] { display: none !important; }
 /* Add top padding so content not hidden behind fixed bar */
 section.main > div { padding-top: 56px !important; }
 
