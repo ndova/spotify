@@ -256,19 +256,49 @@ class AudioDownloader:
                     if needs_enrich:
                         try:
                             itc = iTunesClient()
-                            q = f"{search_artist} {search_title}".strip()
-                            if q:
-                                results = itc.search_tracks(q, limit=3)
-                                if results:
-                                    meta = results[0]
-                                    # Properly map all enrichment fields
+                            # Use artist-aware scoring instead of blindly taking results[0]
+                            # (e.g. "Nala" alone would match Juliana Jendo, but "Tulus Nala" correctly matches Tulus)
+                            enrich_candidates = []
+                            # Try artist+title first (most accurate)
+                            q_artist_title = f"{search_artist} {search_title}".strip() if search_artist else ""
+                            if q_artist_title:
+                                try:
+                                    r = itc.search_tracks(q_artist_title, limit=4)
+                                    if r:
+                                        enrich_candidates.extend(r)
+                                except Exception:
+                                    pass
+                            # Also search title alone (fallback)
+                            try:
+                                r2 = itc.search_tracks(search_title, limit=4)
+                                if r2:
+                                    seen = set(x.get('track_id') for x in enrich_candidates)
+                                    for x in r2:
+                                        if x.get('track_id') not in seen:
+                                            enrich_candidates.append(x)
+                            except Exception:
+                                pass
+                            if enrich_candidates:
+                                meta = self._find_best_match(enrich_candidates, search_title, search_artist or "")
+                                if not meta:
+                                    meta = self._find_best_match(enrich_candidates, search_title, "")
+                                if not meta:
+                                    meta = enrich_candidates[0]
+                                # Only enrich if artist matches (or title exact)
+                                # to avoid e.g. overwriting Tulus/Nala with Juliana Jendo
+                                meta_artist = (meta.get('artist') or '').lower().strip()
+                                want_artist = (search_artist or '').lower().strip()
+                                meta_title = (meta.get('title') or '').lower().strip()
+                                wt = search_title.lower().strip()
+                                artist_ok = not want_artist or want_artist in meta_artist or meta_artist in want_artist or meta_artist == want_artist
+                                title_ok = wt == meta_title or wt in meta_title or meta_title in wt
+                                if artist_ok or title_ok:
                                     for key in ('album', 'cover_url', 'genre', 'release_date', 'release_year', 'duration'):
                                         if not track_info.get(key) and meta.get(key):
                                             track_info[key] = meta.get(key)
-                                    # Also ensure title/artist are correct if enriched
-                                    if meta.get('title') and meta.get('title').lower() in search_title.lower():
-                                        pass  # keep original title
-                                    print(f"  -> enriched metadata: album={meta.get('album')}, genre={meta.get('genre')}, release={meta.get('release_date')}")
+                                    print(f"  -> enriched metadata: album={meta.get('album')}, artist={meta.get('artist')}, genre={meta.get('genre')}, release={meta.get('release_date')}")
+                                else:
+                                    print(f"  ⚠️  Enrichment skipped — candidate {meta.get('title')} - {meta.get('artist')} does not match {search_title} - {search_artist}")
                         except Exception as e:
                             print(f"  ⚠️  Enrichment search failed: {e}")
                     # fetch lyrics if missing - use clean title
