@@ -1,0 +1,11 @@
+[theme]
+# Modern dark-first palette with vibrant accent
+primaryColor = "#7C3AED"
+backgroundColor = "#0F0F14"
+secondaryBackgroundColor = "#1A1A24"
+textColor = "#EDEDED"
+font = "sans serif"
+
+[server]
+headless = true
+port = 8501

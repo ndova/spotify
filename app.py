@@ -11,11 +11,71 @@ from spotify_client import SpotifyClient
 from lyrics_client import LyricsClient
 
 st.set_page_config(
-    page_title="Music Downloader",
-    page_icon="🎵",
+    page_title="SoundVault — Music Downloader",
+    page_icon="🎧",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+# --- Modern theme injection ---
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Grotesk:wght@500;700&display=swap');
+:root {
+  --sv-accent: #7C3AED;
+  --sv-accent-2: #06B6D4;
+  --sv-bg: #0F0F14;
+  --sv-card: #1A1A24;
+  --sv-muted: #9AA0B5;
+}
+html, body, [class*="css"] { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+h1, h2, h3 { font-family: "Space Grotesk", Inter, sans-serif; letter-spacing: -0.02em; }
+.block-container { padding-top: 1.2rem; padding-bottom: 2rem; }
+a { color: var(--sv-accent); }
+
+/* Header hero */
+.sv-hero {
+  background: radial-gradient(1200px 400px at 20% -10%, rgba(124,58,237,0.35), transparent 60%),
+              radial-gradient(900px 300px at 90% 0%, rgba(6,182,214,0.25), transparent 60%),
+              linear-gradient(180deg, rgba(124,58,237,0.10), rgba(0,0,0,0));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 22px 20px;
+  margin-bottom: 16px;
+}
+.sv-hero h1 { font-size: 28px; margin: 0 0 6px 0; }
+.sv-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  background: rgba(124,58,237,0.15);
+  border: 1px solid rgba(124,58,237,0.35);
+  color: #EDE9FE; padding:6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+}
+.sv-sub { color: var(--sv-muted); font-size: 13px; }
+
+/* Card polish */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+  background: var(--sv-card);
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+section[data-testid="stSidebar"] {
+  background: linear-gradient(180deg, #0F0F14, #13131B 60%, #0F0F14);
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+section[data-testid="stSidebar"] .stRadio label, section[data-testid="stSidebar"] .stSelectbox label { color: #CBD5E1; }
+.stButton>button {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  background: linear-gradient(135deg, #7C3AED, #6D28D9) !important;
+  color: white !important;
+}
+.stButton>button:hover { filter: brightness(1.05); transform: translateY(-1px); }
+[data-testid="stMetric"] { background: rgba(255,255,255,0.04); border-radius: 12px; padding: 10px 12px; }
+hr { border-color: rgba(255,255,255,0.08) !important; }
+</style>
+""", unsafe_allow_html=True)
 
 # Debug panel sementara untuk membantu tracing klik tombol
 with st.sidebar.expander("Debug (dev)", expanded=False):
@@ -193,18 +253,24 @@ def download_via_youtube(track: dict) -> None:
         )
 
 def render_track_row(track: dict, key_suffix: str) -> None:
-    """Tampilkan satu baris lagu: sampul, info, preview, dan tombol unduh."""
+    """Tampilkan satu baris lagu: sampul, info, preview, dan tombol unduh. Modern card."""
     cover, info, action = st.columns([0.7, 3.0, 1.3], vertical_alignment="center")
 
     with cover:
         if track.get("cover_url"):
-            st.image(track["cover_url"], width=160)
+            st.markdown(
+                f'<div style="width:84px;height:84px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 20px rgba(0,0,0,0.35)"><img src="{track["cover_url"]}" style="width:100%;height:100%;object-fit:cover; display:block;" /></div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown('<div style="width:84px;height:84px;border-radius:12px;background:#1F1F2A;display:flex;align-items:center;justify-content:center;color:#94A3B8">♪</div>', unsafe_allow_html=True)
 
     with info:
-        st.markdown(f"**{track['title']}**")
+        st.markdown(f"<div style='font-weight:700; font-size:15px; line-height:1.2'>{track['title']}</div>", unsafe_allow_html=True)
         caption = track.get("artist", "")
         if track.get("album"):
-            caption += f" — {track['album']}"
+            caption += f" — <span style='color:#CBD5E1'>{track['album']}</span>"
+        st.markdown(f"<div style='color:#94A3B8; font-size:12px;'>{caption}</div>", unsafe_allow_html=True)
 
         meta = []
         if track.get("duration"):
@@ -213,10 +279,9 @@ def render_track_row(track: dict, key_suffix: str) -> None:
             meta.append(track["genre"])
         if track.get("track_price"):
             meta.append(f"${track['track_price']:.2f}")
-
         if meta:
-            caption += "  |  " + " • ".join(meta)
-        st.caption(caption)
+            chips = " ".join([f"<span style='background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.3); color:#DDD6FE; padding:3px 8px; border-radius:999px; font-size:11px; margin-right:6px;'>{m}</span>" for m in meta])
+            st.markdown(f"<div style='margin-top:6px'>{chips}</div>", unsafe_allow_html=True)
 
         if track.get("preview_url"):
             preview_bytes, preview_err = _fetch_preview_bytes(track["preview_url"])
@@ -500,50 +565,33 @@ def _pop_album_search_view() -> None:
 
 
 def render_album_row(album: dict, key: str, *, view_prefix: str = "") -> None:
-    """Tampilkan satu baris album: sampul, info, dan tombol lihat lagu.
-
-    view_prefix:
-        'album_search' untuk menu Cari album, kosong untuk penggunaan lain.
-        Dipakai untuk membedakan handler tombol.
-    """
+    """Album row modern: rounded cover, soft caption, dan aksi."""
     cover, info, action = st.columns([0.7, 3.0, 1.3], vertical_alignment="center")
-
     with cover:
         if album.get("cover_url"):
-            st.image(album["cover_url"], width=140)
-
+            st.markdown(
+                f'<div style="width:84px;height:84px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 8px 20px rgba(0,0,0,0.30)"><img src="{album["cover_url"]}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown('<div style="width:84px;height:84px;border-radius:12px;background:#1F1F2A;display:flex;align-items:center;justify-content:center;color:#94A3B8">💿</div>', unsafe_allow_html=True)
     with info:
-        st.markdown(f"**{album['album']}**")
-        st.caption(
-            f"{album['artist']} • {album.get('track_count', 0)} lagu"
-            f" • {album.get('genre', '')}"
+        st.markdown(f"<div style='font-weight:700; font-size:15px;'>{album['album']}</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div style='color:#94A3B8; font-size:12px;'>{album['artist']} • {album.get('track_count', 0)} lagu • {album.get('genre', '')}</div>",
+            unsafe_allow_html=True,
         )
-
+        if album.get("release_year"):
+            st.markdown(f"<div style='margin-top:4px'><span style='background:rgba(6,182,214,0.15); border:1px solid rgba(6,182,214,0.3); color:#A5F3FC; padding:2px 8px; border-radius:999px; font-size:11px;'>{album['release_year']}</span></div>", unsafe_allow_html=True)
     with action:
-        # try multiple possible album id keys for robustness
         album_id = album.get("album_id") or album.get("collectionId") or album.get("collectionId") or album.get("id") or album.get("albumId") or ""
         album_name = album.get("album") or album.get("collectionName") or ""
         str_album_id = str(album_id)
         str_album_name = album_name
-
         if view_prefix == "album_search":
-            st.button(
-                "Lihat lagu",
-                key=key,
-                icon=":material/queue_music:",
-                width="stretch",
-                on_click=_show_album_search_tracks,
-                args=(str_album_id, str_album_name),
-            )
+            st.button("Lihat lagu", key=key, icon=":material/queue_music:", width="stretch", on_click=_show_album_search_tracks, args=(str_album_id, str_album_name))
         else:
-            st.button(
-                "Lihat lagu",
-                key=key,
-                icon=":material/queue_music:",
-                width="stretch",
-                on_click=_show_album_tracks,
-                args=(str_album_id, str_album_name),
-            )
+            st.button("Lihat lagu", key=key, icon=":material/queue_music:", width="stretch", on_click=_show_album_tracks, args=(str_album_id, str_album_name))
 
 
 def render_tracks(tracks: list[dict], key_prefix: str) -> None:
@@ -557,16 +605,41 @@ def render_tracks(tracks: list[dict], key_prefix: str) -> None:
 # Navigasi
 # --------------------------------------------------------------------------- #
 with st.sidebar:
-    st.title("🎵 Music Downloader")
-    st.caption("Cari & unduh musik dari iTunes dan Spotify.")
+    st.markdown("""
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#06B6D4);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;">♪</div>
+            <div>
+                <div style="font-weight:800; font-size:16px; line-height:1;">SoundVault</div>
+                <div style="font-size:11px; color:#94A3B8; letter-spacing:0.08em; text-transform:uppercase;">Music Downloader</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    st.caption("Koleksi & unduh musik dari iTunes dan Spotify.")
     menu = st.radio(
         "Menu",
-        ["Cari lagu", "Cari album", "Cari artis", "Tangga lagu"],
+        ["🔍  Cari lagu", "💿  Cari album", "👤  Cari artis", "🏆  Tangga lagu"],
         label_visibility="collapsed",
     )
+    st.divider()
+    st.markdown("<div style='font-size:12px; color:#94A3B8;'>Tips: gunakan kata kunci spesifik untuk hasil lebih akurat.</div>", unsafe_allow_html=True)
 
-st.title("Music Downloader")
-st.caption("Cari lagu, dengarkan cuplikan 30 detik, lalu unduh versi audio.")
+# Hero header (modern)
+HERO_TITLE = {
+    "🔍  Cari lagu": ("Cari Lagu", "Temukan track favorit, preview 30 detik, dan unduh instan."),
+    "💿  Cari album": ("Jelajahi Album", "Buka album untuk melihat daftar lagu dan unduh satu per satu."),
+    "👤  Cari artis": ("Telusuri Artis", "Lihat diskografi artis dan buka albumnya."),
+    "🏆  Tangga lagu": ("Tangga Lagu", "Lagu terpopuler — segarkan untuk update terbaru."),
+}
+# Normalize menu key (strip emoji)
+_menu_key = menu
+hero_title, hero_desc = HERO_TITLE.get(_menu_key, ("SoundVault", "Cari & unduh musik lebih cepat."))
+st.markdown(f"""
+<div class="sv-hero">
+  <div class="sv-badge">🎧 SoundVault • Modern</div>
+  <h1>{hero_title}</h1>
+  <div class="sv-sub">{hero_desc}</div>
+</div>
+""", unsafe_allow_html=True)
 
 
 # --------------------------------------------------------------------------- #
