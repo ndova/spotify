@@ -31,14 +31,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM Kill any existing process on the same port (common after VS Code Streamlit runs)
+REM Try to free port if occupied (best-effort, no error if fails)
 echo [i] Memeriksa port %PORT% ...
-for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":%PORT% " ^| findstr "LISTENING"') do (
-    echo     Menutup proses lama di port %PORT% (PID %%a) ...
-    taskkill /PID %%a /F >nul 2>&1
-)
-REM small wait for port to free
-ping 127.0.0.1 -n 2 >nul 2>&1
+powershell -NoProfile -Command "try { $p = Get-NetTCPConnection -LocalPort %PORT% -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -First 1; if ($p) { Write-Output \"    Menutup proses lama di port %PORT% (PID $p) ...\"; Stop-Process -Id $p -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 2 } } catch {}" 2>nul
 
 echo [i] Menjalankan aplikasi di http://localhost:%PORT%
 echo     Tutup jendela ini untuk menghentikan server.
