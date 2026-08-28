@@ -695,6 +695,82 @@ with st.sidebar:
         st.success("Cache dibersihkan — silakan cari lagi.")
         st.rerun()
 
+# === Spotify top bar: pill search centered (like SS) ===
+# Keep a single global query that mirrors the SS "What do you want to play?" field.
+if "global_search" not in st.session_state:
+    st.session_state.global_search = ""
+if "global_search_limit" not in st.session_state:
+    st.session_state.global_search_limit = 10
+
+def _on_global_search():
+    q = st.session_state.get("global_search_input", "").strip()
+    lim = st.session_state.get("global_search_limit", 10)
+    st.session_state.global_search = q
+    st.session_state.global_search_limit = lim
+    # Mirror into Cari lagu query if menu is there
+    # (render block below will read global_search)
+    if q:
+        # also warm cache for faster render
+        st.session_state.global_search_pending = True
+
+# Render the top bar ABOVE the hero (logo left already in sidebar; this is the centered pill + right actions)
+# Use custom HTML: left circle-home, center pill with search icon + input, separator, browse icon
+# Style it to match SS: dark pill #2A2A2A/#242424, height 48px
+st.markdown("""
+<style>
+.sp-topbar {
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  margin: 6px 0 14px 0;
+}
+.sp-logo-home { display:flex; align-items:center; gap:10px; }
+.sp-home {
+  width:44px; height:44px; border-radius:50%; background:#1F1F1F; display:flex; align-items:center; justify-content:center;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.sp-spotify { width:28px; height:28px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; color:#000; font-weight:900; font-size:14px; }
+.sp-pill {
+  flex: 1 1 auto; max-width: 560px; height:48px; border-radius:999px;
+  background:#2A2A2A; border:1px solid rgba(255,255,255,0.06);
+  display:flex; align-items:center; gap:10px; padding: 0 14px;
+}
+.sp-pill input {
+  flex:1; background:transparent; border:none; outline:none; color:#fff; font-size:14px;
+}
+.sp-pill input::placeholder { color:#9AA0B5; }
+.sp-pill .icon { color:#B3B3B3; font-size:20px; }
+.sp-divider { width:1px; height:24px; background: rgba(255,255,255,0.12); margin: 0 6px; }
+.sp-right { display:flex; align-items:center; gap:8px; }
+.sp-btn {
+  height:36px; padding:0 14px; border-radius:999px; border:1px solid rgba(255,255,255,0.12);
+  background:#fff; color:#000; font-weight:700; font-size:13px;
+}
+.sp-icon-btn {
+  width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.08); color:#fff;
+}
+.sp-avatar { width:36px; height:36px; border-radius:50%; background:#E8A07A; color:#000; display:flex; align-items:center; justify-content:center; font-weight:800; }
+@media (max-width: 900px) { .sp-pill { max-width: none; } .sp-right { display:none; } }
+</style>
+""", unsafe_allow_html=True)
+
+# Build topbar row with Streamlit columns so input is a real widget
+tb_left, tb_center, tb_right = st.columns([1.1, 3.0, 1.4], vertical_alignment="center")
+with tb_left:
+    st.markdown('<div class="sp-logo-home"><div class="sp-spotify">♫</div><div class="sp-home"><span class="material-symbols-rounded">home</span></div></div>', unsafe_allow_html=True)
+with tb_center:
+    # Custom pill: we wrap Streamlit text_input inside the pill via columns+styling
+    st.markdown('<div class="sp-pill"><span class="material-symbols-rounded icon">search</span>', unsafe_allow_html=True)
+    st.text_input(
+        "global_search_input",
+        key="global_search_input",
+        placeholder="What do you want to play?",
+        label_visibility="collapsed",
+        on_change=_on_global_search,
+    )
+    st.markdown('<span class="sp-divider"></span><span class="material-symbols-rounded icon">browse</span></div>', unsafe_allow_html=True)
+with tb_right:
+    st.markdown('<div class="sp-right"><button class="sp-btn">Explore Premium</button><button class="sp-icon-btn"><span class="material-symbols-rounded" style="font-size:18px;">download</span></button><span class="sp-icon-btn"><span class="material-symbols-rounded">notifications</span></span><span class="sp-icon-btn"><span class="material-symbols-rounded">groups</span></span><span class="sp-avatar">N</span></div>', unsafe_allow_html=True)
+
 HERO_TITLE = {
     "Cari lagu": ("Cari Lagu", "Temukan track favorit, preview 30 detik, dan unduh instan.", "search"),
     "Cari album": ("Jelajahi Album", "Buka album untuk melihat daftar lagu.", "album"),
@@ -728,12 +804,23 @@ if st.session_state.get("download_error"):
 # --------------------------------------------------------------------------- #
 if menu == "Cari lagu":
     st.subheader("Cari lagu di iTunes")
+    # Global pill search (like SS) feeds into this menu: if set, use it as default
+    initial_q = st.session_state.get("global_search", "") if st.session_state.get("global_search") else ""
+    initial_lim = st.session_state.get("global_search_limit", 10)
+    # Keep legacy controls but sync with global pill if present
     q_col, l_col = st.columns([3, 1])
     with q_col:
-        query = st.text_input("Judul lagu atau artis", placeholder="mis. The Beatles")
+        # Use global_search as session key if user typed in pill; still allow typing here
+        query = st.text_input("Judul lagu atau artis", value=initial_q, key="song_query", placeholder="mis. The Beatles", on_change=lambda: st.session_state.update({"global_search": st.session_state.get("song_query","")}))
     with l_col:
-        limit = st.slider("Jumlah hasil", 5, 50, 10)
+        limit = st.slider("Jumlah hasil", 5, 50, initial_lim, key="song_limit")
+        # keep global limit synced
+        if limit != st.session_state.get("global_search_limit", initial_lim):
+            st.session_state.global_search_limit = limit
 
+    # Prefer global_search if set and query empty (first load after pill)
+    if not query and initial_q:
+        query = initial_q
     if query:
         tracks = search_tracks(query, limit)
         if tracks:
