@@ -4,6 +4,7 @@ import streamlit as st
 import requests
 import time
 import urllib.parse
+import threading
 from config import Config
 from downloader import AudioDownloader
 from itunes_client import iTunesClient
@@ -89,6 +90,7 @@ with st.sidebar:
     st.selectbox("Format", ["mp3", "m4a"], key="download_format")
     # Support common bitrates; fixed typo to 256
     st.selectbox("Bitrate (kbps)", ["128", "256"], key="download_bitrate")
+    st.checkbox("Auto-fix metadata otomatis (watch downloads/)", key="auto_fixer_enabled", value=True)
     
     st.divider()
     
@@ -110,6 +112,20 @@ with st.sidebar:
                     st.warning(f"Gagal untuk {len(failed)} file; cek log.")
             except Exception as e:
                 st.error(f"Perbaikan metadata gagal: {e}")
+
+# Start auto-fixer watcher in background once per session if enabled
+if st.session_state.get('auto_fixer_enabled', True) and not st.session_state.get('auto_fixer_started'):
+    def _start_auto_fixer_thread():
+        try:
+            # import inside thread to avoid import-time side-effects during Streamlit's reloads
+            from tools.auto_fixer import main as _af_main
+            _af_main(Config.DOWNLOAD_PATH, interval=5, once=False)
+        except Exception as e:
+            print(f"[auto-fixer] failed to start: {e}")
+
+    t = threading.Thread(target=_start_auto_fixer_thread, daemon=True, name="auto_fixer")
+    t.start()
+    st.session_state.auto_fixer_started = True
 
 # --------------------------------------------------------------------------- #
 # Klien (di-cache agar tidak dibuat ulang setiap rerun)
