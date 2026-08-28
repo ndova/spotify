@@ -679,6 +679,21 @@ with st.sidebar:
         label_visibility="collapsed",
     )
     st.markdown("<div style='margin-top:10px; padding:10px 12px; background:#181818; border-radius:8px; border:1px solid rgba(255,255,255,0.06);'><div style='color:#fff; font-weight:600; font-size:12px; margin-bottom:4px;'><span class='material-symbols-rounded' style='font-size:14px; vertical-align:middle;'>lightbulb</span> Tips</div><div style='font-size:11px; color:#B3B3B3; line-height:1.4;'>Gunakan kata kunci spesifik untuk hasil lebih akurat.</div></div>", unsafe_allow_html=True)
+    st.divider()
+    if st.button("🧹 Bersihkan cache", key="clear_cache_btn"):
+        try:
+            search_tracks.clear()
+            search_albums.clear()
+            get_album_tracks.clear()
+            search_artists.clear()
+            get_artist_albums.clear()
+            get_top_songs.clear()
+            st.cache_data.clear()
+            st.cache_resource.clear()
+        except Exception:
+            pass
+        st.success("Cache dibersihkan — silakan cari lagi.")
+        st.rerun()
 
 HERO_TITLE = {
     "Cari lagu": ("Cari Lagu", "Temukan track favorit, preview 30 detik, dan unduh instan.", "search"),
