@@ -718,58 +718,64 @@ def _on_global_search():
 # Style it to match SS: dark pill #2A2A2A/#242424, height 48px
 st.markdown("""
 <style>
-.sp-topbar {
+/* Single unified top bar container — pill centered between left cluster and right actions */
+.sp-topbar-wrap {
   display:flex; align-items:center; justify-content:space-between; gap:16px;
   margin: 6px 0 14px 0;
 }
-.sp-logo-home { display:flex; align-items:center; gap:10px; }
+.sp-topbar-left { display:flex; align-items:center; gap:12px; flex: 0 0 auto; }
+.sp-logo {
+  width:32px; height:32px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center;
+  color:#000; font-weight:900; font-size:16px; flex-shrink:0;
+}
 .sp-home {
   width:44px; height:44px; border-radius:50%; background:#1F1F1F; display:flex; align-items:center; justify-content:center;
-  border: 1px solid rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.06); color:#fff; flex-shrink:0;
 }
-.sp-spotify { width:28px; height:28px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; color:#000; font-weight:900; font-size:14px; }
+.sp-pill-outer {
+  flex: 1 1 auto; display:flex; justify-content:center; min-width: 0;
+}
 .sp-pill {
-  flex: 1 1 auto; max-width: 560px; height:48px; border-radius:999px;
-  background:#2A2A2A; border:1px solid rgba(255,255,255,0.06);
+  width:100%; max-width:560px; height:48px; border-radius:999px;
+  background:#2A2A2A; border:1px solid rgba(255,255,255,0.08);
   display:flex; align-items:center; gap:10px; padding: 0 14px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.35);
 }
-.sp-pill input {
-  flex:1; background:transparent; border:none; outline:none; color:#fff; font-size:14px;
+/* Style the inner Streamlit text_input to be invisible border */
+.sp-pill div[data-testid="stTextInput"] { flex:1; }
+.sp-pill div[data-testid="stTextInput"] > div { border:none !important; background:transparent !important; }
+.sp-pill div[data-testid="stTextInput"] input {
+  background:transparent !important; border:none !important; color:#fff !important; font-size:14px !important;
+  padding: 0 !important; height: 28px;
 }
-.sp-pill input::placeholder { color:#9AA0B5; }
-.sp-pill .icon { color:#B3B3B3; font-size:20px; }
-.sp-divider { width:1px; height:24px; background: rgba(255,255,255,0.12); margin: 0 6px; }
-.sp-right { display:flex; align-items:center; gap:8px; }
+.sp-pill div[data-testid="stTextInput"] input::placeholder { color:#9AA0B5 !important; }
+.sp-pill div[data-testid="stTextInput"] input:focus { box-shadow:none !important; border:none !important; }
+.sp-pill .icon { color:#B3B3B3; font-size:20px; flex-shrink:0; }
+.sp-divider { width:1px; height:24px; background: rgba(255,255,255,0.14); margin: 0 4px; flex-shrink:0; }
+.sp-topbar-right { display:flex; align-items:center; gap:8px; flex: 0 0 auto; }
 .sp-btn {
-  height:36px; padding:0 14px; border-radius:999px; border:1px solid rgba(255,255,255,0.12);
-  background:#fff; color:#000; font-weight:700; font-size:13px;
+  height:36px; padding:0 16px; border-radius:999px; border:none;
+  background:#fff; color:#000; font-weight:700; font-size:13px; white-space:nowrap;
 }
 .sp-icon-btn {
   width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.08); color:#fff;
+  background: rgba(255,255,255,0.08); color:#fff; flex-shrink:0;
 }
-.sp-avatar { width:36px; height:36px; border-radius:50%; background:#E8A07A; color:#000; display:flex; align-items:center; justify-content:center; font-weight:800; }
-@media (max-width: 900px) { .sp-pill { max-width: none; } .sp-right { display:none; } }
+.sp-avatar { width:36px; height:36px; border-radius:50%; background:#E8A07A; color:#000; display:flex; align-items:center; justify-content:center; font-weight:800; flex-shrink:0; }
+@media (max-width: 900px) { .sp-pill { max-width: none; } .sp-topbar-right { display:none; } }
 </style>
 """, unsafe_allow_html=True)
 
-# Build topbar row with Streamlit columns so input is a real widget
-tb_left, tb_center, tb_right = st.columns([1.1, 3.0, 1.4], vertical_alignment="center")
-with tb_left:
-    st.markdown('<div class="sp-logo-home"><div class="sp-spotify">♫</div><div class="sp-home"><span class="material-symbols-rounded">home</span></div></div>', unsafe_allow_html=True)
-with tb_center:
-    # Custom pill: we wrap Streamlit text_input inside the pill via columns+styling
-    st.markdown('<div class="sp-pill"><span class="material-symbols-rounded icon">search</span>', unsafe_allow_html=True)
-    st.text_input(
-        "global_search_input",
-        key="global_search_input",
-        placeholder="What do you want to play?",
-        label_visibility="collapsed",
-        on_change=_on_global_search,
-    )
-    st.markdown('<span class="sp-divider"></span><span class="material-symbols-rounded icon">browse</span></div>', unsafe_allow_html=True)
-with tb_right:
-    st.markdown('<div class="sp-right"><button class="sp-btn">Explore Premium</button><button class="sp-icon-btn"><span class="material-symbols-rounded" style="font-size:18px;">download</span></button><span class="sp-icon-btn"><span class="material-symbols-rounded">notifications</span></span><span class="sp-icon-btn"><span class="material-symbols-rounded">groups</span></span><span class="sp-avatar">N</span></div>', unsafe_allow_html=True)
+# Single top bar: left logo+home | centered pill (with real widget inside) | right actions — no column gaps
+st.markdown('<div class="sp-topbar-wrap"><div class="sp-topbar-left"><div class="sp-logo">♫</div><div class="sp-home"><span class="material-symbols-rounded">home</span></div></div><div class="sp-pill-outer"><div class="sp-pill"><span class="material-symbols-rounded icon">search</span>', unsafe_allow_html=True)
+st.text_input(
+    "global_search_input",
+    key="global_search_input",
+    placeholder="What do you want to play?",
+    label_visibility="collapsed",
+    on_change=_on_global_search,
+)
+st.markdown('<span class="sp-divider"></span><span class="material-symbols-rounded icon">browse</span></div></div><div class="sp-topbar-right"><button class="sp-btn">Explore Premium</button><button class="sp-icon-btn"><span class="material-symbols-rounded" style="font-size:18px;">download</span> Install App</button><span class="sp-icon-btn"><span class="material-symbols-rounded">notifications</span></span><span class="sp-icon-btn"><span class="material-symbols-rounded">groups</span></span><span class="sp-avatar">N</span></div></div>', unsafe_allow_html=True)
 
 HERO_TITLE = {
     "Cari lagu": ("Cari Lagu", "Temukan track favorit, preview 30 detik, dan unduh instan.", "search"),
