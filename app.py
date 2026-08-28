@@ -185,16 +185,10 @@ div[data-testid="stExpander"] { background: var(--sp-card); border: 1px solid va
   padding: 0 14px; z-index: 10;
   margin: 0 -1rem; /* extend to full width */
 }
-/* Sidebar normal flow — no fixed offset, always visible */
+/* Sidebar — allow collapse/expand; keep normal flow */
 section[data-testid="stSidebar"] {
-  display: flex !important; visibility: visible !important; opacity: 1 !important;
-  transform: none !important;
+  visibility: visible;
 }
-section[data-testid="stSidebar"][aria-expanded="false"] {
-  display: flex !important; visibility: visible !important;
-}
-/* Hide only the collapse button */
-button[data-testid="stSidebarCollapseButton"] { display: none !important; }
 
 /* Hide Streamlit chrome */
 header[data-testid="stHeader"] { visibility: hidden; height: 0; }
