@@ -104,27 +104,50 @@ class iTunesClient:
         return out
 
     def search_artists(self, query: str, limit: int = 10) -> List[dict]:
+        """Search artists — iTunes musicArtist entity has NO artwork, so fetch per-artist via lookup."""
         q = {"term": query, "entity": "musicArtist", "limit": limit}
         data = self._safe_get_json("https://itunes.apple.com/search", params=q)
         if not data:
             return []
         out = []
         for r in data.get("results", []):
-            art = r.get("artworkUrl100") or r.get("artworkUrl60") or r.get("artworkUrl30")
-            if art and "100x100" in art:
-                art = art.replace("100x100", "600x600")
-            elif art and "60x60" in art:
-                art = art.replace("60x60", "600x600")
-            elif art and "30x30" in art:
-                art = art.replace("30x30", "600x600")
-
+            artist_id = r.get("artistId")
+            # Try to get artwork from artist's first album via lookup (cached separately)
+            cover = None
+            if artist_id:
+                try:
+                    cover = self._get_artist_cover(artist_id)
+                except Exception:
+                    cover = None
             out.append({
                 "artist": r.get("artistName"),
-                "artist_id": r.get("artistId"),
+                "artist_id": artist_id,
                 "genre": r.get("primaryGenreName"),
-                "cover_url": art,
+                "cover_url": cover,
             })
         return out
+
+    def _get_artist_cover(self, artist_id: int) -> str | None:
+        """Fetch cover for an artist from their first album artwork. Lightweight, 1-album lookup."""
+        try:
+            params = {"id": artist_id, "entity": "album", "limit": 1}
+            data = self._safe_get_json("https://itunes.apple.com/lookup", params=params, timeout=5)
+            if not data:
+                return None
+            for item in data.get("results", []):
+                if item.get("wrapperType") == "collection":
+                    art = item.get("artworkUrl100") or item.get("artworkUrl60") or item.get("artworkUrl30")
+                    if art:
+                        if "100x100" in art:
+                            art = art.replace("100x100", "600x600")
+                        elif "60x60" in art:
+                            art = art.replace("60x60", "600x600")
+                        elif "30x30" in art:
+                            art = art.replace("30x30", "600x600")
+                        return art
+            return None
+        except Exception:
+            return None
 
     def get_album_tracks(self, album_id: str) -> List[dict]:
         try:
