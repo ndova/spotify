@@ -4,9 +4,6 @@ import streamlit as st
 import requests
 import time
 import urllib.parse
-import threading
-import os
-import json
 from config import Config
 from downloader import AudioDownloader
 from itunes_client import iTunesClient
@@ -86,96 +83,6 @@ if "download_format" not in st.session_state:
     st.session_state.download_format = "mp3"
 if "download_bitrate" not in st.session_state:
     st.session_state.download_bitrate = "256"
-if "auto_start_done" not in st.session_state:
-    st.session_state.auto_start_done = False
-
-# --------------------------------------------------------------------------- #
-# Auto-fixer: otomatis memperbaiki metadata file baru di folder downloads
-# --------------------------------------------------------------------------- #
-def _load_fixer_state(state_path):
-    """Muat daftar file yang sudah diproses dari file state JSON."""
-    if os.path.exists(state_path):
-        try:
-            with open(state_path, 'r', encoding='utf-8') as f:
-                return set(json.load(f))
-        except Exception:
-            return set()
-    return set()
-
-
-def _save_fixer_state(state_path, processed):
-    """Simpan daftar file yang sudah diproses ke file state JSON."""
-    try:
-        with open(state_path, 'w', encoding='utf-8') as f:
-            json.dump(list(processed), f)
-    except Exception:
-        pass
-
-
-def _auto_fixer_worker(download_path, interval, stop_event):
-    """Worker thread: memonitor folder downloads dan memproses file baru."""
-    state_file = os.path.join(download_path, '.auto_fixer_state.json')
-    processed = _load_fixer_state(state_file)
-    # gunakan AudioDownloader langsung untuk akses fix_metadata_for_file
-    ad = AudioDownloader(download_path)
-    while not stop_event.is_set():
-        try:
-            files = [f for f in os.listdir(download_path) if os.path.isfile(os.path.join(download_path, f))]
-            for fname in files:
-                if fname in processed:
-                    continue
-                path = os.path.join(download_path, fname)
-                # log ke terminal server (opsional)
-                print(f"[auto-fixer] New file: {fname}")
-                try:
-                    res = ad.fix_metadata_for_file(path)
-                    print(f"[auto-fixer] -> {res}")
-                except Exception as e:
-                    print(f"[auto-fixer] Error processing {fname}: {e}")
-                processed.add(fname)
-                _save_fixer_state(state_file, processed)
-        except Exception as e:
-            print(f"[auto-fixer] Loop error: {e}")
-        # sleep in small chunks to respond to stop_event promptly
-        for _ in range(interval * 2):
-            if stop_event.is_set():
-                break
-            time.sleep(0.5)
-
-
-def _start_auto_fixer():
-    """Mulai thread auto-fixer jika belum berjalan."""
-    if not st.session_state.get('auto_fixer_running', False):
-        stop_event = threading.Event()
-        thread = threading.Thread(
-            target=_auto_fixer_worker,
-            args=(Config.DOWNLOAD_PATH, 5, stop_event),
-            daemon=True,
-            name='auto-fixer'
-        )
-        st.session_state.auto_fixer_stop_event = stop_event
-        st.session_state.auto_fixer_thread = thread
-        st.session_state.auto_fixer_running = True
-        thread.start()
-        print("[app] Auto-fixer started")
-
-
-def _stop_auto_fixer():
-    """Hentikan thread auto-fixer."""
-    if st.session_state.get('auto_fixer_running', False):
-        st.session_state.auto_fixer_stop_event.set()
-        # tunggu sebentar agar thread bisa bersih
-        if st.session_state.get('auto_fixer_thread'):
-            st.session_state.auto_fixer_thread.join(timeout=2)
-        st.session_state.auto_fixer_running = False
-        print("[app] Auto-fixer stopped")
-
-# Auto-start auto-fixer on first run (default: active)
-if not st.session_state.auto_start_done:
-    st.session_state.auto_start_done = True
-    # if not already running, start automatically
-    if not st.session_state.get('auto_fixer_running', False):
-        _start_auto_fixer()
 
 with st.sidebar:
     st.markdown("**Download options**")
@@ -203,24 +110,6 @@ with st.sidebar:
                     st.warning(f"Gagal untuk {len(failed)} file; cek log.")
             except Exception as e:
                 st.error(f"Perbaikan metadata gagal: {e}")
-
-    st.divider()
-    st.markdown("**Auto-fixer**")
-    # checkbox untuk mengaktifkan/menonaktifkan auto-fixer
-    auto_fixer_enabled = st.checkbox(
-        "Aktifkan auto-fixer (otomatis perbaiki metadata file baru)",
-        value=st.session_state.get('auto_fixer_running', False),
-        key='auto_fixer_checkbox'
-    )
-    if auto_fixer_enabled and not st.session_state.get('auto_fixer_running', False):
-        _start_auto_fixer()
-        st.success("Auto-fixer aktif — memantau folder downloads.")
-    elif not auto_fixer_enabled and st.session_state.get('auto_fixer_running', False):
-        _stop_auto_fixer()
-        st.info("Auto-fixer dihentikan.")
-    
-    if st.session_state.get('auto_fixer_running', False):
-        st.caption("🔄 Auto-fixer berjalan di background (interval 5 detik)")
 
 
 # --------------------------------------------------------------------------- #
