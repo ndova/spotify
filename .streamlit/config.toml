@@ -1,9 +1,9 @@
 [theme]
-# Modern dark-first palette with vibrant accent
-primaryColor = "#7C3AED"
-backgroundColor = "#0F0F14"
-secondaryBackgroundColor = "#1A1A24"
-textColor = "#EDEDED"
+# Light modern palette — clean & airy
+primaryColor = "#4F46E5"
+backgroundColor = "#F8FAFC"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#0F172A"
 font = "sans serif"
 
 [server]
