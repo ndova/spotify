@@ -35,21 +35,37 @@ class iTunesClient:
             return []
         out = []
         for r in data.get("results", []):
-                # Prefer a higher-resolution artwork by replacing common size tokens
-                art = r.get("artworkUrl100")
-                if art and "100x100" in art:
-                    art = art.replace("100x100", "600x600")
+            # Prefer a higher-resolution artwork by replacing common size tokens
+            art = r.get("artworkUrl100") or r.get("artworkUrl60") or r.get("artworkUrl30")
+            if art and "100x100" in art:
+                art = art.replace("100x100", "600x600")
+            elif art and "60x60" in art:
+                art = art.replace("60x60", "600x600")
+            elif art and "30x30" in art:
+                art = art.replace("30x30", "600x600")
 
-                out.append({
-                    "title": r.get("trackName") or r.get("name"),
-                    "artist": r.get("artistName"),
-                    "album": r.get("collectionName"),
-                    "cover_url": art,
-                    "preview_url": r.get("previewUrl"),
-                    "track_id": r.get("trackId") or r.get("trackId"),
-                    "duration": int(r.get("trackTimeMillis", 0) / 1000) if r.get("trackTimeMillis") else None,
-                    "genre": r.get("primaryGenreName"),
-                })
+            # Parse release date - extract year for convenience
+            release_date = r.get("releaseDate")
+            release_year = None
+            if release_date:
+                try:
+                    # releaseDate format: "2020-01-15T08:00:00Z"
+                    release_year = release_date[:4]
+                except Exception:
+                    pass
+
+            out.append({
+                "title": r.get("trackName") or r.get("name"),
+                "artist": r.get("artistName"),
+                "album": r.get("collectionName"),
+                "cover_url": art,
+                "preview_url": r.get("previewUrl"),
+                "track_id": r.get("trackId"),
+                "duration": int(r.get("trackTimeMillis", 0) / 1000) if r.get("trackTimeMillis") else None,
+                "genre": r.get("primaryGenreName"),
+                "release_date": release_date,
+                "release_year": release_year,
+            })
         return out
 
     def search_albums(self, query: str, limit: int = 10) -> List[dict]:
@@ -59,13 +75,31 @@ class iTunesClient:
             return []
         out = []
         for r in data.get("results", []):
+            art = r.get("artworkUrl100") or r.get("artworkUrl60") or r.get("artworkUrl30")
+            if art and "100x100" in art:
+                art = art.replace("100x100", "600x600")
+            elif art and "60x60" in art:
+                art = art.replace("60x60", "600x600")
+            elif art and "30x30" in art:
+                art = art.replace("30x30", "600x600")
+
+            release_date = r.get("releaseDate")
+            release_year = None
+            if release_date:
+                try:
+                    release_year = release_date[:4]
+                except Exception:
+                    pass
+
             out.append({
                 "album": r.get("collectionName"),
                 "album_id": r.get("collectionId"),
                 "artist": r.get("artistName"),
-                "cover_url": r.get("artworkUrl100"),
+                "cover_url": art,
                 "track_count": r.get("trackCount"),
                 "genre": r.get("primaryGenreName"),
+                "release_date": release_date,
+                "release_year": release_year,
             })
         return out
 
@@ -76,10 +110,19 @@ class iTunesClient:
             return []
         out = []
         for r in data.get("results", []):
+            art = r.get("artworkUrl100") or r.get("artworkUrl60") or r.get("artworkUrl30")
+            if art and "100x100" in art:
+                art = art.replace("100x100", "600x600")
+            elif art and "60x60" in art:
+                art = art.replace("60x60", "600x600")
+            elif art and "30x30" in art:
+                art = art.replace("30x30", "600x600")
+
             out.append({
                 "artist": r.get("artistName"),
                 "artist_id": r.get("artistId"),
                 "genre": r.get("primaryGenreName"),
+                "cover_url": art,
             })
         return out
 
@@ -109,13 +152,31 @@ class iTunesClient:
             out = []
             for r in results:
                 if r.get("wrapperType") == "collection":
+                    art = r.get("artworkUrl100") or r.get("artworkUrl60") or r.get("artworkUrl30")
+                    if art and "100x100" in art:
+                        art = art.replace("100x100", "600x600")
+                    elif art and "60x60" in art:
+                        art = art.replace("60x60", "600x600")
+                    elif art and "30x30" in art:
+                        art = art.replace("30x30", "600x600")
+
+                    release_date = r.get("releaseDate")
+                    release_year = None
+                    if release_date:
+                        try:
+                            release_year = release_date[:4]
+                        except Exception:
+                            pass
+
                     out.append({
                         "album": r.get("collectionName"),
                         "album_id": r.get("collectionId"),
                         "artist": r.get("artistName"),
-                        "cover_url": r.get("artworkUrl100"),
+                        "cover_url": art,
                         "track_count": r.get("trackCount"),
                         "genre": r.get("primaryGenreName"),
+                        "release_date": release_date,
+                        "release_year": release_year,
                     })
             return out
         except Exception:
@@ -130,13 +191,31 @@ class iTunesClient:
             results = feed.get("results") or []
             out = []
             for r in results:
+                art = r.get("artworkUrl100") or r.get("artworkUrl60") or r.get("artworkUrl30")
+                if art and "100x100" in art:
+                    art = art.replace("100x100", "600x600")
+                elif art and "60x60" in art:
+                    art = art.replace("60x60", "600x600")
+                elif art and "30x30" in art:
+                    art = art.replace("30x30", "600x600")
+
+                release_date = r.get("releaseDate")
+                release_year = None
+                if release_date:
+                    try:
+                        release_year = release_date[:4]
+                    except Exception:
+                        pass
+
                 out.append({
                     "title": r.get("name"),
                     "artist": r.get("artistName"),
                     "album": r.get("collectionName") or r.get("albumName"),
-                    "cover_url": r.get("artworkUrl100") or r.get("artworkUrl60"),
+                    "cover_url": art,
                     "preview_url": None,
                     "track_id": r.get("id"),
+                    "release_date": release_date,
+                    "release_year": release_year,
                 })
             return out
 
@@ -158,6 +237,10 @@ class iTunesClient:
                 # try to upsize image if possible
                 if image and "100x100" in image:
                     image = image.replace("100x100", "600x600")
+                elif image and "60x60" in image:
+                    image = image.replace("60x60", "600x600")
+                elif image and "30x30" in image:
+                    image = image.replace("30x30", "600x600")
                 out.append({
                     "title": name,
                     "artist": artist,
@@ -185,15 +268,33 @@ class iTunesClient:
             return None
 
     def _map_track(self, r: dict) -> dict:
+        art = r.get("artworkUrl100") or r.get("artworkUrl60") or r.get("artworkUrl30")
+        if art and "100x100" in art:
+            art = art.replace("100x100", "600x600")
+        elif art and "60x60" in art:
+            art = art.replace("60x60", "600x600")
+        elif art and "30x30" in art:
+            art = art.replace("30x30", "600x600")
+
+        release_date = r.get("releaseDate")
+        release_year = None
+        if release_date:
+            try:
+                release_year = release_date[:4]
+            except Exception:
+                pass
+
         return {
             "title": r.get("trackName") or r.get("name"),
             "artist": r.get("artistName"),
             "album": r.get("collectionName"),
-            "cover_url": r.get("artworkUrl100"),
+            "cover_url": art,
             "preview_url": r.get("previewUrl"),
-            "track_id": r.get("trackId") or r.get("trackId"),
+            "track_id": r.get("trackId"),
             "duration": int(r.get("trackTimeMillis", 0) / 1000) if r.get("trackTimeMillis") else None,
             "genre": r.get("primaryGenreName"),
+            "release_date": release_date,
+            "release_year": release_year,
         }
 
 

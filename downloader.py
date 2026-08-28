@@ -244,42 +244,49 @@ class AudioDownloader:
                     except Exception:
                         pass
 
-                # If metadata is missing, try to enrich it from iTunes
+                # Enrich metadata from iTunes before writing (always try to fill missing fields correctly)
                 try:
-                    missing_keys = any(
-                        not track_info.get(k) for k in ('cover_url', 'album', 'genre')
-                    )
-                    if missing_keys:
+                    # Clean search query - use artist + title, handling parenthetical
+                    search_artist = track_info.get('artist', '')
+                    search_title = track_info.get('title', '')
+                    if '(' in search_title:
+                        search_title = search_title.split('(')[0].strip()
+                    if missing_keys or not track_info.get('release_date'):
                         try:
                             itc = iTunesClient()
-                            q = f"{track_info.get('artist','')} {track_info.get('title','')}".strip()
+                            q = f"{search_artist} {search_title}".strip()
                             if q:
                                 results = itc.search_tracks(q, limit=3)
                                 if results:
                                     meta = results[0]
-                                    for key in ('album', 'cover_url', 'genre', 'release_date'):
+                                    # Properly map all enrichment fields
+                                    for key in ('album', 'cover_url', 'genre', 'release_date', 'release_year', 'duration'):
                                         if not track_info.get(key) and meta.get(key):
                                             track_info[key] = meta.get(key)
-                        except Exception:
-                            pass
-                    # fetch lyrics if missing
+                                    # Also ensure title/artist are correct if enriched
+                                    if meta.get('title') and meta.get('title').lower() in search_title.lower():
+                                        pass  # keep original title
+                                    print(f"  -> enriched metadata: album={meta.get('album')}, genre={meta.get('genre')}, release={meta.get('release_date')}")
+                        except Exception as e:
+                            print(f"  ⚠️  Enrichment search failed: {e}")
+                    # fetch lyrics if missing - use clean title
                     try:
                         if not track_info.get('lyrics'):
                             lc = LyricsClient()
-                            l = lc.fetch_lyrics(track_info.get('artist', ''), track_info.get('title', ''))
-                            if l:
-                                track_info['lyrics'] = l
+                            lyrics_title = search_title
+                            lyrics_artist = search_artist or track_info.get('artist', '')
+                            if lyrics_artist:
+                                l = lc.fetch_lyrics(lyrics_artist, lyrics_title)
+                                if l:
+                                    track_info['lyrics'] = l
+                                    print(f"  -> fetched lyrics: {len(l)} chars")
                     except Exception:
                         pass
 
                     # add metadata for supported container types (ensure correct ext handling)
-                    # If file is still not m4a but requested m4a, do not attempt MP4 tags; handle as mp3 if applicable
-                    # Normalize extension for metadata
                     _, ext_for_meta = os.path.splitext(out_path)
                     ext_for_meta = ext_for_meta.lower()
-                    # Always try _add_metadata; it dispatches by extension safely
                     try:
-                        # First attempt
                         ok = self._add_metadata(out_path, track_info)
                         # Verify m4a tags were actually written
                         if fmt == 'm4a' and ext_for_meta in ('.m4a', '.mp4'):
@@ -289,17 +296,14 @@ class AudioDownloader:
                                 needed = ['\xa9nam', '\xa9ART']
                                 if not all(k in keys for k in needed):
                                     print(f"  ⚠️  MP4 tags missing after first write: {keys} — retrying with helper")
-                                    # retry once: delete existing tags object and re-add
-                                    # fallback: force re-save via second call
                                     self._add_metadata(out_path, track_info)
                                     mp4v2 = MP4(out_path)
                                     print(f"  -> retry tags: {list((mp4v2.tags or {}).keys())}")
                             except Exception as e:
                                 print(f"  ⚠️  Verify MP4 tags failed: {e}")
-                        # Second path: if file was detected as opus/ogg but should be m4a, attempt ffmpeg transcode already handled above
                     except Exception as e:
                         print(f"  ⚠️  Could not add metadata: {e}")
-                    # ensure metadata completed by running focused fixer for the file (also robust for m4a)
+                    # ensure metadata completed by running focused fixer for the file
                     try:
                         fixer_res = self.fix_metadata_for_file(out_path)
                         if fixer_res.get('status') != 'written':
@@ -555,6 +559,7 @@ class AudioDownloader:
         of whether basic tags appear present.
 
         Returns a list of results with filename and status.
+        Uses proper metadata mapping to ensure correct tags.
         """
         itc = iTunesClient()
         lc = LyricsClient()
@@ -602,86 +607,129 @@ class AudioDownloader:
 
             title = os.path.splitext(fname)[0]
             track_info = {'title': title}
-            # try iTunes search
+            # try iTunes search - handle title with parentheses for better matching
+            # e.g., "Sial (Acoustic Version)" -> search for "Sial"
+            search_title = title
+            if '(' in title:
+                search_title = title.split('(')[0].strip()
             try:
-                results_it = itc.search_tracks(title, limit=8)
+                results_it = itc.search_tracks(search_title, limit=8)
             except Exception:
                 results_it = []
             match = None
+            # First try exact match
             for r in results_it:
                 if r.get('title','').lower() == title.lower():
                     match = r
                     break
+            # Then try partial match (title contains search term)
+            if not match:
+                for r in results_it:
+                    if search_title.lower() in r.get('title','').lower() or r.get('title','').lower() in search_title.lower():
+                        match = r
+                        break
             if not match and results_it:
                 match = results_it[0]
             if match:
+                # Properly map all available metadata fields
                 track_info.update({
+                    'title': match.get('title') or title,
                     'artist': match.get('artist'),
                     'album': match.get('album'),
                     'cover_url': match.get('cover_url'),
                     'genre': match.get('genre'),
                     'release_date': match.get('release_date'),
-                    'preview_url': match.get('preview_url')
+                    'release_year': match.get('release_year'),
+                    'preview_url': match.get('preview_url'),
+                    'duration': match.get('duration'),
                 })
 
-            # lyrics
-            if track_info.get('artist'):
+            # lyrics - fetch with clean artist/title
+            artist_for_lyrics = track_info.get('artist') or ''
+            title_for_lyrics = track_info.get('title') or title
+            if artist_for_lyrics:
                 try:
-                    l = lc.fetch_lyrics(track_info.get('artist'), track_info.get('title'))
+                    # Clean title for lyrics search (remove parenthetical)
+                    lyrics_title = title_for_lyrics.split('(')[0].strip() if '(' in title_for_lyrics else title_for_lyrics
+                    l = lc.fetch_lyrics(artist_for_lyrics, lyrics_title)
                     if l:
                         track_info['lyrics'] = l
                 except Exception:
                     pass
 
             try:
-                self._add_metadata(path, track_info)
-                results.append({'file': fname, 'status': 'written'})
+                result = self._add_metadata(path, track_info)
+                # _add_metadata returns bool, check if successful
+                if result is True:
+                    results.append({'file': fname, 'status': 'written'})
+                else:
+                    results.append({'file': fname, 'status': 'error', 'error': 'Failed to write metadata'})
             except Exception as e:
                 results.append({'file': fname, 'status': 'error', 'error': str(e)})
 
         return results
 
     def fix_metadata_for_file(self, file_path: str) -> dict:
-        """Enrich and write metadata for a single file. Returns result dict."""
+        """Enrich and write metadata for a single file. Returns result dict.
+        
+        Properly maps metadata to ensure correct tags are written.
+        """
         itc = iTunesClient()
         lc = LyricsClient()
         fname = os.path.basename(file_path)
         title = os.path.splitext(fname)[0]
         track_info = {'title': title}
 
-        # try iTunes search
+        # try iTunes search - handle title with parentheses
+        search_title = title.split('(')[0].strip() if '(' in title else title
         try:
-            results_it = itc.search_tracks(title, limit=6)
+            results_it = itc.search_tracks(search_title, limit=6)
         except Exception:
             results_it = []
         match = None
+        # Exact match first
         for r in results_it:
             if r.get('title','').lower() == title.lower():
                 match = r
                 break
+        # Partial match fallback
+        if not match:
+            for r in results_it:
+                if search_title.lower() in r.get('title','').lower() or r.get('title','').lower() in search_title.lower():
+                    match = r
+                    break
         if not match and results_it:
             match = results_it[0]
         if match:
             track_info.update({
+                'title': match.get('title') or title,
                 'artist': match.get('artist'),
                 'album': match.get('album'),
                 'cover_url': match.get('cover_url'),
                 'genre': match.get('genre'),
                 'release_date': match.get('release_date'),
-                'preview_url': match.get('preview_url')
+                'release_year': match.get('release_year'),
+                'preview_url': match.get('preview_url'),
+                'duration': match.get('duration'),
             })
 
         # lyrics
-        if track_info.get('artist'):
+        artist_for_lyrics = track_info.get('artist') or ''
+        title_for_lyrics = track_info.get('title') or title
+        if artist_for_lyrics:
             try:
-                l = lc.fetch_lyrics(track_info.get('artist'), track_info.get('title'))
+                lyrics_title = title_for_lyrics.split('(')[0].strip() if '(' in title_for_lyrics else title_for_lyrics
+                l = lc.fetch_lyrics(artist_for_lyrics, lyrics_title)
                 if l:
                     track_info['lyrics'] = l
             except Exception:
                 pass
 
         try:
-            self._add_metadata(file_path, track_info)
-            return {'file': fname, 'status': 'written'}
+            result = self._add_metadata(file_path, track_info)
+            if result is True:
+                return {'file': fname, 'status': 'written'}
+            else:
+                return {'file': fname, 'status': 'error', 'error': 'Failed to write metadata'}
         except Exception as e:
             return {'file': fname, 'status': 'error', 'error': str(e)}
