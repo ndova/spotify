@@ -818,18 +818,32 @@ elif menu == "Cari artis":
     if "current_view" not in st.session_state:
         st.session_state.current_view = "artists"
 
-    # ARTISTS VIEW: tampilkan daftar artis
+    # ARTISTS VIEW: tampilkan artis sebagai kartu ala Spotify (dengan thumbnail)
     if st.session_state.get("current_view", "artists") == "artists":
         artists = st.session_state.get("artist_results", [])
         if artists:
             st.write(f"Ditemukan {len(artists)} artis:")
             for artist in artists:
                 with st.container(border=True):
-                    c1, c2 = st.columns([3.0, 1.3], vertical_alignment="center")
+                    c0, c1, c2 = st.columns([0.7, 3.0, 1.3], vertical_alignment="center")
+                    with c0:
+                        cover = artist.get("cover_url")
+                        if cover:
+                            st.markdown(
+                                f'<div style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#181818;box-shadow:0 4px 16px rgba(0,0,0,0.4)"><img src="{cover}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>',
+                                unsafe_allow_html=True,
+                            )
+                        else:
+                            st.markdown(
+                                '<div style="width:56px;height:56px;border-radius:50%;background:#282828;display:flex;align-items:center;justify-content:center;color:#727272"><span class="material-symbols-rounded" style="font-size:28px;">person</span></div>',
+                                unsafe_allow_html=True,
+                            )
                     with c1:
-                        st.markdown(f"**{artist['artist']}**")
+                        st.markdown(f"<div style='font-weight:700; font-size:14px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>{artist['artist']}</div>", unsafe_allow_html=True)
                         if artist.get("genre"):
-                            st.caption(artist["genre"])
+                            st.markdown(f"<div style='color:#B3B3B3; font-size:12px;'><span class='sv-chip'>{artist['genre']}</span></div>", unsafe_allow_html=True)
+                        else:
+                            st.markdown("<div style='color:#727272; font-size:12px;'>Artis</div>", unsafe_allow_html=True)
                     with c2:
                         st.button(
                             "Lihat album",
