@@ -174,29 +174,15 @@ def get_lyrics_client() -> LyricsClient:
     return LyricsClient()
 
 
-# Download format options
-if "download_format" not in st.session_state:
-    st.session_state.download_format = "mp3"
-if "download_bitrate" not in st.session_state:
-    st.session_state.download_bitrate = "256"
-
+# Sidebar minimal — no download options here (moved to per-track dialog)
 with st.sidebar:
-    st.markdown("**Download options**")
-    st.selectbox("Format", ["mp3", "m4a"], key="download_format")
-    # Support common bitrates; fixed typo to 256
-    st.selectbox("Bitrate (kbps)", ["128", "256"], key="download_bitrate")
-    
-    st.divider()
-    
     if st.button("Perbaiki metadata semua", key="fix_all_metadata"):
         with st.spinner('Memperbaiki metadata...'):
             try:
-                # force=True to rewrite metadata even if basic tags exist
                 res = get_downloader().fix_all_metadata(force=True)
                 written = [r['file'] for r in res if r.get('status') == 'written']
                 failed = [r for r in res if r.get('status') == 'error']
                 skipped = [r['file'] for r in res if r.get('status') == 'skipped']
-                
                 st.success(f"Menulis metadata untuk {len(written)} file.")
                 if written:
                     st.write('\n'.join(written))
@@ -266,27 +252,61 @@ def get_top_songs(country: str, limit: int) -> list[dict]:
 # Komponen bantu
 # --------------------------------------------------------------------------- #
 
+def _open_download_dialog(track: dict) -> None:
+    """Buka dialog pilihan format/bitrate untuk track yang akan diunduh."""
+    # store a copy without mutating original track dict
+    st.session_state.pending_download = dict(track)
+
+@st.dialog("Download — pilih format")
+def _download_dialog():
+    track = st.session_state.get("pending_download")
+    if not track:
+        st.info("Tidak ada lagu yang dipilih.")
+        return
+    st.markdown(f"**{track.get('artist','')} — {track.get('title','')}**")
+    if track.get("album"):
+        st.caption(track.get("album"))
+
+    fmt = st.selectbox("Format", ["mp3", "m4a"], key="dlg_download_format", index=0)
+    br = st.selectbox("Bitrate (kbps)", ["128", "256"], key="dlg_download_bitrate", index=1)
+
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Mulai download", width="stretch", icon=":material/download:"):
+            with st.spinner(f"Mengunduh {track.get('artist','')} — {track.get('title','')}..."):
+                track_copy = dict(track)
+                track_copy["format"] = fmt
+                track_copy["bitrate"] = br
+                ok = get_downloader().download_track(track_copy, source="youtube")
+            st.session_state.pending_download = None
+            if ok:
+                st.success(f"Berhasil diunduh: {track.get('artist','')} — {track.get('title','')}")
+            else:
+                st.error("Gagal mengunduh. Pastikan FFmpeg terpasang dan koneksi stabil.")
+            # keep dialog open to show result; user closes via X
+    with c2:
+        if st.button("Batal", width="stretch"):
+            st.session_state.pending_download = None
+            st.rerun()
+
+# Auto-open dialog when a track is selected
+if st.session_state.get("pending_download"):
+    _download_dialog()
+
 def download_via_youtube(track: dict) -> None:
-    """Jalankan unduhan YouTube dan tampilkan statusnya."""
+    """Jalankan unduhan dengan opsi dari dialog (dipanggil hanya dari dialog)."""
     label = f"{track['artist']} - {track['title']}"
     with st.spinner(f"Mengunduh {label}..."):
-        fmt = st.session_state.get("download_format", "mp3")
-        br = st.session_state.get("download_bitrate", "256")
-        
-        # pass format and bitrate in track_info for downstream use
+        fmt = track.get("format") or st.session_state.get("dlg_download_format", "mp3")
+        br = track.get("bitrate") or st.session_state.get("dlg_download_bitrate", "256")
         track_copy = dict(track)
-        track_copy['format'] = fmt
-        track_copy['bitrate'] = br
-        
-        ok = get_downloader().download_track(track_copy, source='youtube')
-
+        track_copy["format"] = fmt
+        track_copy["bitrate"] = br
+        ok = get_downloader().download_track(track_copy, source="youtube")
     if ok:
         st.success(f"Berhasil diunduh: {label}")
     else:
-        st.error(
-            f"Gagal mengunduh {label}. "
-            "Pastikan FFmpeg terpasang dan koneksi internet stabil."
-        )
+        st.error(f"Gagal mengunduh {label}. Pastikan FFmpeg terpasang dan koneksi internet stabil.")
 
 def render_track_row(track: dict, key_suffix: str) -> None:
     """Spotify track row — dark card, muted meta, green play affordance."""
@@ -347,7 +367,7 @@ def render_track_row(track: dict, key_suffix: str) -> None:
             key=f"dl_{key_suffix}",
             icon=":material/download:",
             width="stretch",
-            on_click=download_via_youtube,
+            on_click=_open_download_dialog,
             args=(track,),
         )
 
