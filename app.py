@@ -596,31 +596,38 @@ if menu == "Cari lagu":
 # --------------------------------------------------------------------------- #
 elif menu == "Cari album":
     st.subheader("Cari album di iTunes")
+
+    # handler untuk sync hasil pencarian album tanpa memodifikasi widget key langsung
+    def _perform_album_search() -> None:
+        q = st.session_state.get("album_query", "")
+        lim = st.session_state.get("album_limit", 5)
+        if not q:
+            st.session_state.album_results = []
+            return
+        st.session_state.album_results = search_albums(q, lim)
+        # reset view ke hasil
+        st.session_state.album_search_view = "album_results"
+
     q_col, l_col = st.columns([3, 1])
     with q_col:
-        query = st.text_input("Nama album atau artis", key="album_query")
+        st.text_input(
+            "Nama album atau artis",
+            key="album_query",
+            on_change=_perform_album_search,
+            placeholder="Ketik nama album lalu tekan Enter",
+        )
     with l_col:
-        limit = st.slider("Jumlah album", 3, 20, 5, key="album_limit")
+        st.slider("Jumlah album", 3, 20, 5, key="album_limit", on_change=_perform_album_search)
 
-    # simpan query/limit ke session agar view konsisten setelah navigasi
-    if query:
-        st.session_state.album_query = query
-        st.session_state.album_limit = limit
-        # jika masih di view hasil, refresh hasil pencarian
-        if st.session_state.get("album_search_view", "album_results") == "album_results":
-            st.session_state.album_results = search_albums(query, limit)
-
-    # default view untuk menu ini
+    # pastikan view default
     if "album_search_view" not in st.session_state:
         st.session_state.album_search_view = "album_results"
+    if "album_results" not in st.session_state:
+        st.session_state.album_results = []
 
     # VIEW: daftar album (menggantikan dropdown lama)
     if st.session_state.get("album_search_view", "album_results") == "album_results":
         albums = st.session_state.get("album_results", [])
-        # jika belum ada tapi query ada, fetch sekarang (first load)
-        if not albums and st.session_state.get("album_query"):
-            albums = search_albums(st.session_state.album_query, st.session_state.get("album_limit", 5))
-            st.session_state.album_results = albums
 
         if albums:
             st.write(f"Ditemukan {len(albums)} album:")
