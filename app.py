@@ -86,6 +86,8 @@ if "download_format" not in st.session_state:
     st.session_state.download_format = "mp3"
 if "download_bitrate" not in st.session_state:
     st.session_state.download_bitrate = "256"
+if "auto_start_done" not in st.session_state:
+    st.session_state.auto_start_done = False
 
 # --------------------------------------------------------------------------- #
 # Auto-fixer: otomatis memperbaiki metadata file baru di folder downloads
@@ -167,6 +169,13 @@ def _stop_auto_fixer():
             st.session_state.auto_fixer_thread.join(timeout=2)
         st.session_state.auto_fixer_running = False
         print("[app] Auto-fixer stopped")
+
+# Auto-start auto-fixer on first run (default: active)
+if not st.session_state.auto_start_done:
+    st.session_state.auto_start_done = True
+    # if not already running, start automatically
+    if not st.session_state.get('auto_fixer_running', False):
+        _start_auto_fixer()
 
 with st.sidebar:
     st.markdown("**Download options**")
