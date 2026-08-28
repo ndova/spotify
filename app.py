@@ -16,12 +16,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
-# Force sidebar expanded on every rerun
-try:
-    st.session_state["sidebar_expanded"] = True
-except Exception:
-    pass
-
 # --- Spotify-inspired theme ---
 st.markdown("""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap');
@@ -40,7 +34,7 @@ st.markdown("""<style>
 }
 html, body, [class*="css"] { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 h1, h2, h3 { font-family: Montserrat, Inter, sans-serif; letter-spacing: -0.02em; }
-.block-container { padding-top: 64px; padding-bottom: 5.5rem; max-width: 1360px; }
+.block-container { padding-top: 1rem; padding-bottom: 5.5rem; max-width: 1360px; }
 a { color: var(--sp-green); }
 .material-symbols-rounded { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
 
@@ -183,28 +177,24 @@ div[data-testid="stExpander"] { background: var(--sp-card); border: 1px solid va
 @media (max-width: 1100px) { .sp-shell { grid-template-columns: 240px 1fr; } .sp-panel-right { display:none; } }
 @media (max-width: 760px) { .sp-shell { grid-template-columns: 1fr; } .sp-panel { min-height: auto; } }
 
-/* Full-width fixed top bar */
+/* Full-width top bar (not fixed) — sits above sidebar/content naturally */
 .sp-topbar-fixed {
-  position: fixed; top: 0; left: 0; right: 0; height: 56px;
+  position: relative; height: 56px;
   background: #000; border-bottom: 1px solid rgba(255,255,255,0.06);
   display:flex; align-items:center; justify-content:space-between; gap:16px;
-  padding: 0 14px; z-index: 1000;
+  padding: 0 14px; z-index: 10;
+  margin: 0 -1rem; /* extend to full width */
 }
-/* Keep sidebar always visible and below top bar */
+/* Sidebar normal flow — no fixed offset, always visible */
 section[data-testid="stSidebar"] {
   display: flex !important; visibility: visible !important; opacity: 1 !important;
   transform: none !important;
-  top: 56px !important; height: calc(100vh - 56px) !important;
 }
 section[data-testid="stSidebar"][aria-expanded="false"] {
   display: flex !important; visibility: visible !important;
 }
-section[data-testid="stSidebar"] > div { padding-top: 8px !important; }
-/* Hide only the collapse button, not the sidebar itself */
+/* Hide only the collapse button */
 button[data-testid="stSidebarCollapseButton"] { display: none !important; }
-button[kind="headerNoPadding"] { display: none !important; }
-/* Add top padding so content not hidden behind fixed bar */
-section.main > div { padding-top: 56px !important; }
 
 /* Hide Streamlit chrome */
 header[data-testid="stHeader"] { visibility: hidden; height: 0; }
@@ -900,33 +890,17 @@ if st.session_state.get("download_error"):
 # 1) Cari lagu di iTunes
 # --------------------------------------------------------------------------- #
 if menu == "Cari lagu":
-    # Wrapped in main panel — sidebar is Your Library, so main needs only 2 cols
+    # Wrapped in main panel — use global pill as the single search (no duplicate bar)
     st.markdown('<div class="sp-shell">', unsafe_allow_html=True)
     col_main, col_right = st.columns([7, 3], vertical_alignment="top", gap="small")
     with col_main:
         st.markdown('<div class="sp-panel sp-panel-main">', unsafe_allow_html=True)
 
-        # Filter pills like SS: All / Music / Podcasts
-        f1, f2, f3 = st.columns([0.18, 0.2, 0.6])
-        with f1:
-            st.markdown('<span class="sp-filter sp-filter-active">All</span>', unsafe_allow_html=True)
-        with f2:
-            st.markdown('<span class="sp-filter">Music</span>', unsafe_allow_html=True)
-        with f3:
-            st.markdown('<span class="sp-filter">Podcasts</span>', unsafe_allow_html=True)
-
-        # Global pill search feeds into this menu
-        initial_q = st.session_state.get("global_search", "") if st.session_state.get("global_search") else ""
-        initial_lim = st.session_state.get("global_search_limit", 10)
-        q_col, l_col = st.columns([3, 1])
-        with q_col:
-            query = st.text_input("Judul lagu atau artis", value=initial_q, key="song_query", placeholder="mis. The Beatles", on_change=lambda: st.session_state.update({"global_search": st.session_state.get("song_query","")}))
-        with l_col:
-            limit = st.slider("Jumlah hasil", 5, 50, initial_lim, key="song_limit")
-            if limit != st.session_state.get("global_search_limit", initial_lim):
-                st.session_state.global_search_limit = limit
-        if not query and initial_q:
-            query = initial_q
+        # Only limit control here — search is via top pill "What do you want to play?"
+        query = st.session_state.get("global_search", "") if st.session_state.get("global_search") else ""
+        limit = st.slider("Jumlah hasil", 5, 50, st.session_state.get("global_search_limit", 10), key="song_limit")
+        if limit != st.session_state.get("global_search_limit", 10):
+            st.session_state.global_search_limit = limit
 
         if query:
             tracks = search_tracks(query, limit)
