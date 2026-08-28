@@ -1,0 +1,4 @@
+streamlit==1.62.0
+yt-dlp==2026.8.19
+mutagen==1.48.1
+requests==2.34.2
