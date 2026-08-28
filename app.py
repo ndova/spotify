@@ -11,81 +11,137 @@ from spotify_client import SpotifyClient
 from lyrics_client import LyricsClient
 
 st.set_page_config(
-    page_title="Auralis — Music Downloader",
-    page_icon="⬢",
+    page_title="Spotify — Music Downloader",
+    page_icon="🟢",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# --- Light modern theme + minimal iconography ---
-# Use st.html for raw HTML injection (renders <link> correctly), keep <style> in markdown for CSS
+# --- Spotify-inspired theme ---
 st.markdown("""<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap');
 :root {
-  --sv-accent: #4F46E5;
-  --sv-accent-2: #06B6D4;
-  --sv-bg: #F8FAFC;
-  --sv-card: #FFFFFF;
-  --sv-border: #E2E8F0;
-  --sv-muted: #64748B;
-  --sv-text: #0F172A;
+  --sp-green: #1DB954;
+  --sp-green-hover: #1ED760;
+  --sp-black: #000000;
+  --sp-dark: #121212;
+  --sp-card: #181818;
+  --sp-card-hover: #282828;
+  --sp-elevated: #242424;
+  --sp-border: rgba(255,255,255,0.10);
+  --sp-muted: #B3B3B3;
+  --sp-subtle: #727272;
+  --sp-text: #FFFFFF;
 }
-html, body, [class*="css"] { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: var(--sv-text); }
-h1, h2, h3 { font-family: "Plus Jakarta Sans", Inter, sans-serif; letter-spacing: -0.02em; }
-.block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1160px; }
-a { color: var(--sv-accent); }
+html, body, [class*="css"] { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+h1, h2, h3 { font-family: Montserrat, Inter, sans-serif; letter-spacing: -0.02em; }
+.block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1180px; }
+a { color: var(--sp-green); }
+.material-symbols-rounded { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
 
-.material-symbols-rounded { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+/* App background — Spotify dark gradient */
+.stApp {
+  background: linear-gradient(180deg, #1a1a1a 0%, #121212 40%, #000000 100%) !important;
+}
 
-/* Hero — light, airy, subtle gradient */
+/* Hero — playlist header ala Spotify */
 .sv-hero {
-  background: linear-gradient(135deg, rgba(79,70,229,0.08), rgba(6,182,214,0.08)),
-              radial-gradient(900px 320px at 85% -10%, rgba(79,70,229,0.10), transparent 60%),
-              #FFFFFF;
-  border: 1px solid var(--sv-border);
-  border-radius: 20px;
-  padding: 20px 22px;
+  background: linear-gradient(180deg, rgba(29,185,84,0.18) 0%, rgba(18,18,18,0.0) 70%),
+              linear-gradient(135deg, #2a2a2a, #181818);
+  border: 1px solid var(--sp-border);
+  border-radius: 8px;
+  padding: 24px 24px 20px 24px;
   margin-bottom: 16px;
-  box-shadow: 0 8px 30px rgba(15,23,42,0.06);
+  display: flex; gap: 20px; align-items: center;
 }
-.sv-hero h1 { font-size: 26px; margin: 0 0 6px 0; color: var(--sv-text); }
+.sv-hero-cover {
+  width: 132px; height: 132px; border-radius: 4px; flex-shrink: 0;
+  background: linear-gradient(135deg, #3a3a3a, #1a1a1a);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+  display:flex; align-items:center; justify-content:center;
+  font-size: 52px; color: #fff;
+}
+.sv-hero-text h1 { font-size: 30px; margin: 0 0 6px 0; color: #fff; font-weight: 800; line-height: 1.1; }
+.sv-hero-text .sv-sub { color: var(--sp-muted); font-size: 13px; }
 .sv-badge {
   display:inline-flex; align-items:center; gap:6px;
-  background: #EEF2FF;
-  border: 1px solid #C7D2FE;
-  color: #3730A3; padding:6px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff; padding:5px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
 }
-.sv-sub { color: var(--sv-muted); font-size: 13px; }
 
-/* Cards — light, soft shadow */
+/* Cards — Spotify card style */
 div[data-testid="stVerticalBlockBorderWrapper"] {
-  background: var(--sv-card) !important;
-  border: 1px solid var(--sv-border) !important;
-  border-radius: 16px !important;
-  box-shadow: 0 6px 24px rgba(15,23,42,0.06) !important;
+  background: var(--sp-card) !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  transition: background 0.2s ease;
 }
-section[data-testid="stSidebar"] {
-  background: #FFFFFF;
-  border-right: 1px solid var(--sv-border);
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+  background: var(--sp-card-hover) !important;
 }
-section[data-testid="stSidebar"] .stRadio label, section[data-testid="stSidebar"] .stSelectbox label { color: #334155; }
-.stButton>button {
-  border-radius: 12px !important;
-  font-weight: 600 !important;
-  border: 1px solid #E2E8F0 !important;
-  background: linear-gradient(135deg, #4F46E5, #4338CA) !important;
-  color: white !important;
-  box-shadow: 0 6px 16px rgba(79,70,229,0.25);
-}
-.stButton>button:hover { filter: brightness(1.04); transform: translateY(-1px); }
-[data-testid="stMetric"] { background: #FFFFFF; border: 1px solid var(--sv-border); border-radius: 12px; padding: 10px 12px; }
-hr { border-color: var(--sv-border) !important; }
-div[data-testid="stExpander"] { border: 1px solid var(--sv-border); border-radius: 12px; }
 
-/* Badge chips light */
-.sv-chip { display:inline-flex; align-items:center; gap:6px; background:#F1F5F9; border:1px solid #E2E8F0; color:#334155; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
-.sv-chip-accent { background:#EEF2FF; border-color:#C7D2FE; color:#3730A3; }
-/* Hide Streamlit chrome: Deploy button, header, footer */
+/* Sidebar — Spotify left nav (black) */
+section[data-testid="stSidebar"] {
+  background: #000000 !important;
+  border-right: none !important;
+}
+section[data-testid="stSidebar"] .stRadio label, section[data-testid="stSidebar"] .stSelectbox label { color: #B3B3B3 !important; }
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p { color: #B3B3B3; }
+
+/* Buttons — Spotify green primary */
+.stButton>button {
+  border-radius: 999px !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: none !important;
+  background: var(--sp-green) !important;
+  color: #000 !important;
+  padding: 10px 20px !important;
+  box-shadow: none !important;
+}
+.stButton>button:hover {
+  background: var(--sp-green-hover) !important;
+  transform: scale(1.02);
+}
+.stButton>button:active { transform: scale(0.99); }
+
+/* Secondary buttons (Previous etc) — dark pill */
+button[kind="secondary"] {
+  background: rgba(255,255,255,0.08) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+}
+
+/* Inputs */
+div[data-testid="stTextInput"] input, div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+  background: #242424 !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+}
+div[data-testid="stSlider"] { color: #fff; }
+
+/* Table / header row like Spotify tracklist header */
+.sp-tracklist-header {
+  display:grid; grid-template-columns: 36px 52px 1fr 140px 80px 120px;
+  gap: 12px; align-items:center;
+  padding: 8px 12px; margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+  color: var(--sp-muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+[data-testid="stMetric"] { background: var(--sp-card); border: 1px solid var(--sp-border); border-radius: 8px; padding: 10px 12px; color: #fff; }
+hr { border-color: rgba(255,255,255,0.08) !important; }
+div[data-testid="stExpander"] { background: var(--sp-card); border: 1px solid var(--sp-border); border-radius: 8px; }
+
+/* Chips — Spotify pill subdued */
+.sv-chip { display:inline-flex; align-items:center; gap:6px; background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.10); color:#fff; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
+.sv-chip-accent { background: var(--sp-green); border-color: var(--sp-green); color:#000; }
+
+/* Hide Streamlit chrome */
 header[data-testid="stHeader"] { display: none; }
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
@@ -233,31 +289,29 @@ def download_via_youtube(track: dict) -> None:
         )
 
 def render_track_row(track: dict, key_suffix: str) -> None:
-    """Light modern track row — soft card, indigo chips."""
+    """Spotify track row — dark card, muted meta, green play affordance."""
     cover, info, action = st.columns([0.7, 3.0, 1.3], vertical_alignment="center")
     with cover:
         if track.get("cover_url"):
             st.markdown(
-                f'<div style="width:84px;height:84px;border-radius:14px;overflow:hidden;border:1px solid #E2E8F0;box-shadow:0 8px 20px rgba(15,23,42,0.08)"><img src="{track["cover_url"]}" style="width:100%;height:100%;object-fit:cover; display:block;" /></div>',
+                f'<div style="width:56px;height:56px;border-radius:4px;overflow:hidden;background:#181818;box-shadow:0 4px 16px rgba(0,0,0,0.4)"><img src="{track["cover_url"]}" style="width:100%;height:100%;object-fit:cover; display:block;" /></div>',
                 unsafe_allow_html=True,
             )
         else:
-            st.markdown('<div style="width:84px;height:84px;border-radius:14px;background:#F1F5F9;border:1px solid #E2E8F0;display:flex;align-items:center;justify-content:center;color:#64748B"><span class="material-symbols-rounded">music_note</span></div>', unsafe_allow_html=True)
+            st.markdown('<div style="width:56px;height:56px;border-radius:4px;background:#282828;display:flex;align-items:center;justify-content:center;color:#727272"><span class="material-symbols-rounded" style="font-size:28px;">music_note</span></div>', unsafe_allow_html=True)
     with info:
-        st.markdown(f"<div style='font-weight:700; font-size:15px; line-height:1.2; color:#0F172A'>{track['title']}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-weight:600; font-size:14px; line-height:1.25; color:#FFFFFF; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>{track['title']}</div>", unsafe_allow_html=True)
         caption = track.get("artist", "")
         if track.get("album"):
-            caption += f" — <span style='color:#475569'>{track['album']}</span>"
-        st.markdown(f"<div style='color:#64748B; font-size:12px;'>{caption}</div>", unsafe_allow_html=True)
+            caption += f" <span style='color:#727272'>•</span> <span style='color:#B3B3B3'>{track['album']}</span>"
+        st.markdown(f"<div style='color:#B3B3B3; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>{caption}</div>", unsafe_allow_html=True)
         meta = []
         if track.get("duration"):
             meta.append(f"{track['duration'] // 60}:{track['duration'] % 60:02d}")
         if track.get("genre"):
             meta.append(track["genre"])
-        if track.get("track_price"):
-            meta.append(f"${track['track_price']:.2f}")
         if meta:
-            chips = " ".join([f"<span class='sv-chip sv-chip-accent'>{m}</span>" for m in meta])
+            chips = " ".join([f"<span class='sv-chip'>{m}</span>" for m in meta])
             st.markdown(f"<div style='margin-top:6px'>{chips}</div>", unsafe_allow_html=True)
 
         if track.get("preview_url"):
@@ -542,21 +596,21 @@ def _pop_album_search_view() -> None:
 
 
 def render_album_row(album: dict, key: str, *, view_prefix: str = "") -> None:
-    """Album row modern: rounded cover, soft caption, dan aksi."""
+    """Spotify album row — square cover, subtle meta."""
     cover, info, action = st.columns([0.7, 3.0, 1.3], vertical_alignment="center")
     with cover:
         if album.get("cover_url"):
             st.markdown(
-                f'<div style="width:84px;height:84px;border-radius:14px;overflow:hidden;border:1px solid #E2E8F0;box-shadow:0 8px 20px rgba(15,23,42,0.08)"><img src="{album["cover_url"]}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>',
+                f'<div style="width:56px;height:56px;border-radius:4px;overflow:hidden;background:#181818;box-shadow:0 4px 16px rgba(0,0,0,0.4)"><img src="{album["cover_url"]}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>',
                 unsafe_allow_html=True,
             )
         else:
-            st.markdown('<div style="width:84px;height:84px;border-radius:14px;background:#F1F5F9;border:1px solid #E2E8F0;display:flex;align-items:center;justify-content:center;color:#64748B"><span class="material-symbols-rounded">album</span></div>', unsafe_allow_html=True)
+            st.markdown('<div style="width:56px;height:56px;border-radius:4px;background:#282828;display:flex;align-items:center;justify-content:center;color:#727272"><span class="material-symbols-rounded">album</span></div>', unsafe_allow_html=True)
     with info:
-        st.markdown(f"<div style='font-weight:700; font-size:15px; color:#0F172A'>{album['album']}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div style='color:#64748B; font-size:12px;'>{album['artist']} • {album.get('track_count', 0)} lagu • {album.get('genre', '')}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-weight:600; font-size:14px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>{album['album']}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='color:#B3B3B3; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>{album['artist']} <span style='color:#727272'>•</span> {album.get('track_count', 0)} lagu <span style='color:#727272'>•</span> {album.get('genre', '')}</div>", unsafe_allow_html=True)
         if album.get("release_year"):
-            st.markdown(f"<div style='margin-top:4px'><span class='sv-chip sv-chip-accent'>{album['release_year']}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='margin-top:4px'><span class='sv-chip'>{album['release_year']}</span></div>", unsafe_allow_html=True)
     with action:
         album_id = album.get("album_id") or album.get("collectionId") or album.get("collectionId") or album.get("id") or album.get("albumId") or ""
         album_name = album.get("album") or album.get("collectionName") or ""
@@ -580,35 +634,36 @@ def render_tracks(tracks: list[dict], key_prefix: str) -> None:
 # --------------------------------------------------------------------------- #
 with st.sidebar:
     st.markdown("""
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-            <div style="width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#4F46E5,#06B6D4);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;box-shadow:0 8px 16px rgba(79,70,229,0.25)"><span class="material-symbols-rounded" style="font-size:20px; color:white;">equalizer</span></div>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:#1DB954;display:flex;align-items:center;justify-content:center;color:#000;font-weight:900; font-size:16px;">♫</div>
             <div>
-                <div style="font-weight:800; font-size:16px; line-height:1; color:#0F172A;">Auralis</div>
-                <div style="font-size:11px; color:#64748B; letter-spacing:0.10em; text-transform:uppercase;">Music Downloader</div>
+                <div style="font-weight:800; font-size:15px; line-height:1; color:#fff; letter-spacing:-0.02em;">Spotify</div>
+                <div style="font-size:10px; color:#B3B3B3; letter-spacing:0.12em; text-transform:uppercase;">Downloader</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
-    st.caption("Temukan, preview, dan unduh — cepat & rapi.")
     menu = st.radio(
         "Menu",
         ["Cari lagu", "Cari album", "Cari artis", "Tangga lagu"],
         label_visibility="collapsed",
     )
-    st.divider()
-    st.markdown("<div style='font-size:12px; color:#64748B;'>Tips: gunakan kata kunci spesifik untuk hasil lebih akurat.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top:10px; padding:10px 12px; background:#181818; border-radius:8px; border:1px solid rgba(255,255,255,0.06);'><div style='color:#fff; font-weight:600; font-size:12px; margin-bottom:4px;'><span class='material-symbols-rounded' style='font-size:14px; vertical-align:middle;'>lightbulb</span> Tips</div><div style='font-size:11px; color:#B3B3B3; line-height:1.4;'>Gunakan kata kunci spesifik untuk hasil lebih akurat.</div></div>", unsafe_allow_html=True)
 
 HERO_TITLE = {
-    "Cari lagu": ("Cari Lagu", "Temukan track favorit, preview 30 detik, dan unduh instan."),
-    "Cari album": ("Jelajahi Album", "Buka album untuk melihat daftar lagu dan unduh satu per satu."),
-    "Cari artis": ("Telusuri Artis", "Lihat diskografi artis dan buka albumnya."),
-    "Tangga lagu": ("Tangga Lagu", "Lagu terpopuler — segarkan untuk update terbaru."),
+    "Cari lagu": ("Cari Lagu", "Temukan track favorit, preview 30 detik, dan unduh instan.", "search"),
+    "Cari album": ("Jelajahi Album", "Buka album untuk melihat daftar lagu.", "album"),
+    "Cari artis": ("Telusuri Artis", "Lihat diskografi artis dan buka albumnya.", "person_search"),
+    "Tangga lagu": ("Tangga Lagu", "Lagu terpopuler — segarkan untuk update terbaru.", "leaderboard"),
 }
-hero_title, hero_desc = HERO_TITLE.get(menu, ("Auralis", "Cari & unduh musik lebih cepat."))
+hero_title, hero_desc, hero_icon = HERO_TITLE.get(menu, ("Spotify", "Cari & unduh musik lebih cepat.", "music_note"))
 st.markdown(f"""
 <div class="sv-hero">
-  <div class="sv-badge"><span class="material-symbols-rounded" style="font-size:14px;">auto_awesome</span> Auralis • Light Modern</div>
-  <h1>{hero_title}</h1>
-  <div class="sv-sub">{hero_desc}</div>
+  <div class="sv-hero-cover"><span class="material-symbols-rounded" style="font-size:56px;">{hero_icon}</span></div>
+  <div class="sv-hero-text">
+    <div class="sv-badge"><span class="material-symbols-rounded" style="font-size:14px;">graphic_eq</span> Spotify • Playlist</div>
+    <h1>{hero_title}</h1>
+    <div class="sv-sub">{hero_desc}</div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 

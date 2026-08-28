@@ -1,9 +1,9 @@
 [theme]
-# Light modern palette — clean & airy
-primaryColor = "#4F46E5"
-backgroundColor = "#F8FAFC"
-secondaryBackgroundColor = "#FFFFFF"
-textColor = "#0F172A"
+# Spotify-inspired dark
+primaryColor = "#1DB954"
+backgroundColor = "#121212"
+secondaryBackgroundColor = "#181818"
+textColor = "#FFFFFF"
 font = "sans serif"
 
 [server]
