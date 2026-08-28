@@ -425,8 +425,22 @@ def _open_album_and_show(album: dict) -> None:
     _show_album_tracks(str(album_id), album_name)
 
 
-def render_album_row(album: dict, key: str) -> None:
-    """Tampilkan satu baris album: sampul, info, dan tombol lihat lagu."""
+# Handler dedicated untuk menu "Cari album"
+# (view yang sama, tapi sinkron ke selected_album agar blok render di menu tersebut membaca hasil yang benar)
+def _show_album_search_tracks(album_id: str, album_name: str) -> None:
+    _show_album_tracks(album_id, album_name)
+    # sinkronkan ke state yang dibaca oleh bagian "Cari album"
+    st.session_state.selected_album = str(album_id)
+    st.session_state.selected_album_name = album_name
+
+
+def render_album_row(album: dict, key: str, *, view_prefix: str = "") -> None:
+    """Tampilkan satu baris album: sampul, info, dan tombol lihat lagu.
+
+    view_prefix:
+        'album_search' untuk menu Cari album, kosong untuk penggunaan lain.
+        Dipakai untuk membedakan handler tombol.
+    """
     cover, info, action = st.columns([0.7, 3.0, 1.3], vertical_alignment="center")
 
     with cover:
@@ -444,14 +458,27 @@ def render_album_row(album: dict, key: str) -> None:
         # try multiple possible album id keys for robustness
         album_id = album.get("album_id") or album.get("collectionId") or album.get("collectionId") or album.get("id") or album.get("albumId") or ""
         album_name = album.get("album") or album.get("collectionName") or ""
-        st.button(
-            "Lihat lagu",
-            key=key,
-            icon=":material/queue_music:",
-            width="stretch",
-            on_click=_show_album_tracks,
-            args=(str(album_id), album_name),
-        )
+        str_album_id = str(album_id)
+        str_album_name = album_name
+
+        if view_prefix == "album_search":
+            st.button(
+                "Lihat lagu",
+                key=key,
+                icon=":material/queue_music:",
+                width="stretch",
+                on_click=_show_album_search_tracks,
+                args=(str_album_id, str_album_name),
+            )
+        else:
+            st.button(
+                "Lihat lagu",
+                key=key,
+                icon=":material/queue_music:",
+                width="stretch",
+                on_click=_show_album_tracks,
+                args=(str_album_id, str_album_name),
+            )
 
 
 def render_tracks(tracks: list[dict], key_prefix: str) -> None:
@@ -516,16 +543,50 @@ elif menu == "Cari album":
             st.write(f"Ditemukan {len(albums)} album:")
             for album in albums:
                 with st.container(border=True):
-                    render_album_row(album, f"album_{album.get('album_id', '')}")
+                    render_album_row(
+                        album,
+                        f"album_{album.get('album_id', '')}",
+                        view_prefix="album_search",
+                    )
 
-            if st.session_state.get("selected_album"):
+            # Tampilkan lagu untuk album yang dipilih — prioritaskan state baru (current_view)
+            current_album_id = None
+            current_album_name = None
+
+            # Jika user klik dari Cari album, state disimpan via _show_album_search_tracks
+            if st.session_state.get("current_view") == "album_tracks" and st.session_state.get("current_album_id"):
+                current_album_id = st.session_state.get("current_album_id")
+                current_album_name = st.session_state.get("current_album_name")
+            elif st.session_state.get("selected_album"):
+                current_album_id = st.session_state.get("selected_album")
+                current_album_name = st.session_state.get("selected_album_name")
+
+            if current_album_id:
                 st.divider()
-                st.subheader("Lagu dalam album")
-                album_tracks = get_album_tracks(st.session_state.selected_album)
+                # Tombol kembali: reset kedua state agar daftar album kembali terlihat
+                if st.button("Kembali ke hasil album", icon=":material/arrow_back:", key="back_to_albums"):
+                    st.session_state.selected_album = ""
+                    st.session_state.selected_album_name = ""
+                    if st.session_state.get("current_view") == "album_tracks":
+                        _pop_view()
+                    st.rerun()
+
+                title = current_album_name or "Album"
+                st.subheader(f"Lagu dalam {title}")
+
+                # Ambil lagu dari state jika ada, fallback ke fetch langsung
+                album_tracks = st.session_state.get("album_tracks") if st.session_state.get("current_album_id") == current_album_id else None
+                if album_tracks is None:
+                    album_tracks = get_album_tracks(current_album_id)
+
                 if album_tracks:
                     render_tracks(album_tracks, "alb_track")
                 else:
                     st.info("Tidak ada lagu ditemukan untuk album ini.")
+                    # tampilkan info debug singkat
+                    last_err = st.session_state.get("last_album_fetch_error")
+                    if last_err:
+                        st.caption(f"Info: {str(last_err)[:200]}")
         else:
             st.info("Tidak ada album untuk pencarian tersebut.")
 
