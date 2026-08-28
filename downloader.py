@@ -10,6 +10,7 @@ from mutagen.mp4 import MP4, MP4Cover, MP4Tags
 from itunes_client import iTunesClient
 from lyrics_client import LyricsClient
 import shutil
+import re
 
 
 def _resolve_ffmpeg_location() -> Optional[str]:
@@ -117,12 +118,10 @@ class AudioDownloader:
             except Exception:
                 br_value = int(str(bitrate).strip() or 256)
             if fmt_norm == 'm4a':
-                # Explicitly set AAC encoder, bitrate and faststart flag for better compatibility
                 opts['postprocessor_args'] = ['-c:a', 'aac', '-b:a', f"{br_value}k", '-movflags', '+faststart']
-                # Also try to coerce ffmpeg output to mp4/m4a container
                 opts['prefer_ffmpeg'] = True
-                # When download format is m4a, use m4a extension explicitly
-                opts['outtmpl'] = os.path.join(self.download_path, f'{safe_title}.m4a')
+                # Use %(ext)s with explicit ext forced via preferredcodec; yt-dlp will use .m4a
+                opts['outtmpl'] = os.path.join(self.download_path, f'{safe_title}.%(ext)s')
             else:
                 opts['postprocessor_args'] = ['-b:a', f"{br_value}k"]
                 opts['outtmpl'] = os.path.join(self.download_path, f'{safe_title}.%(ext)s')
@@ -160,23 +159,47 @@ class AudioDownloader:
                         print(f"      matched -> {out_path}")
                         break
 
-            # Guard: if file ends with double extension like ".m4a.m4a", rename to single
-            if out_path and out_path.lower().endswith('.m4a.m4a'):
-                fixed = out_path[:-4]  # remove one ".m4a"
-                try:
-                    if not os.path.exists(fixed):
-                        os.rename(out_path, fixed)
-                        print(f"  -> fixed double extension: {out_path} -> {fixed}")
-                        out_path = fixed
-                    else:
-                        # target exists, remove the double one (keep original)
+            # Aggressive dedup: strip repeated extensions anywhere
+            if out_path:
+                # collapse ".m4a.m4a" or ".mp3.mp3" etc. anywhere in basename
+                base, ext = os.path.splitext(out_path)
+                # ext is last extension; check if base itself ends with same ext
+                while base.lower().endswith(ext.lower()) and ext:
+                    print(f"  -> dedup extension: {out_path} -> {base}")
+                    prev = out_path
+                    # remove duplicate suffix from base
+                    base = base[: -len(ext)]
+                    out_path = base + ext
+                    # also rename file if it exists with double
+                    if os.path.exists(prev) and not os.path.exists(out_path):
                         try:
-                            os.remove(out_path)
+                            os.rename(prev, out_path)
+                            print(f"  -> renamed dedup: {prev} -> {out_path}")
+                        except Exception as e:
+                            print(f"  ⚠️  dedup rename failed: {e}")
+                            out_path = prev
+                            break
+                    elif os.path.exists(prev) and os.path.exists(out_path):
+                        try:
+                            os.remove(prev)
                         except Exception:
                             pass
-                        out_path = fixed
-                except Exception as e:
-                    print(f"  ⚠️  Could not fix double extension: {e}")
+                        break
+                    else:
+                        # no file yet with double, but fix path for next steps
+                        break
+                    base, ext = os.path.splitext(out_path)
+                # also sanitize any scan-found file with multiple extensions
+                # e.g., "Song.m4a.m4a" found via scan
+                if out_path.lower().endswith('.m4a.m4a'):
+                    fixed = re.sub(r'(\.m4a)+$', '.m4a', out_path, flags=re.IGNORECASE)
+                    if fixed != out_path and not os.path.exists(fixed):
+                        try:
+                            os.rename(out_path, fixed)
+                            print(f"  -> fixed double extension: {out_path} -> {fixed}")
+                            out_path = fixed
+                        except Exception as e:
+                            print(f"  ⚠️  Could not fix double extension: {e}")
 
             if out_path and os.path.exists(out_path):
                 # Coerce mismatched extension if needed (e.g., yt-dlp produced opus but we wanted m4a)
@@ -502,24 +525,27 @@ class AudioDownloader:
     
     def _safe_filename(self, filename: str) -> str:
         """Convert string to safe filename without duplicate extensions."""
-        # Strip any existing audio extension first to avoid double like "Song.m4a.m4a"
-        # (yt-dlp adds %(ext)s, so we only want the base name)
         filename = filename.strip()
-        # Remove trailing dots/spaces first
         filename = filename.rstrip('. ')
-        # If filename already ends with a known audio extension, strip it
-        lower = filename.lower()
-        for ext in ('.mp3', '.m4a', '.mp4', '.m4b', '.aac', '.wav', '.ogg', '.opus', '.flac'):
-            if lower.endswith(ext):
-                filename = filename[: -len(ext)]
-                lower = filename.lower()
+        # Strip ALL trailing audio extensions repeatedly: "a.m4a.m4a" -> "a"
+        # Also handles mixed case and multiple dots/spaces.
+        while True:
+            lower = filename.lower()
+            stripped = None
+            for ext in ('.mp3', '.m4a', '.mp4', '.m4b', '.aac', '.wav', '.ogg', '.opus', '.flac', '.webm'):
+                if lower.endswith(ext):
+                    stripped = filename[: -len(ext)].rstrip('. ')
+                    break
+            if stripped is not None and stripped != filename:
+                filename = stripped
+            else:
                 break
-        # Now remove invalid characters
         invalid_chars = '<>:"/\\|?*'
         for char in invalid_chars:
             filename = filename.replace(char, '')
-        # Remove trailing periods and spaces again
         filename = filename.rstrip('. ')
+        # Collapse multiple spaces
+        filename = re.sub(r'\s+', ' ', filename)
         return filename
 
     def fix_all_metadata(self, force: bool = False) -> list:
