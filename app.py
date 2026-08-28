@@ -273,17 +273,21 @@ def _download_dialog():
     c1, c2 = st.columns(2)
     with c1:
         if st.button("Mulai download", width="stretch", icon=":material/download:"):
-            with st.spinner(f"Mengunduh {track.get('artist','')} — {track.get('title','')}..."):
+            title = track.get('title','')
+            artist = track.get('artist','')
+            with st.spinner(f"Mengunduh {artist} — {title}..."):
                 track_copy = dict(track)
                 track_copy["format"] = fmt
                 track_copy["bitrate"] = br
                 ok = get_downloader().download_track(track_copy, source="youtube")
+            # close dialog first so popup tidak menggantung
             st.session_state.pending_download = None
             if ok:
-                st.success(f"Berhasil diunduh: {track.get('artist','')} — {track.get('title','')}")
+                st.session_state.download_toast = f"Berhasil diunduh: {artist} — {title}"
             else:
-                st.error("Gagal mengunduh. Pastikan FFmpeg terpasang dan koneksi stabil.")
-            # keep dialog open to show result; user closes via X
+                st.session_state.download_toast = None
+                st.session_state.download_error = f"Gagal mengunduh {artist} — {title}. Pastikan FFmpeg terpasang dan koneksi stabil."
+            st.rerun()
     with c2:
         if st.button("Batal", width="stretch"):
             st.session_state.pending_download = None
@@ -686,6 +690,15 @@ st.markdown(f"""
   </div>
 </div>
 """, unsafe_allow_html=True)
+
+# Toast after download (dialog auto-closed): show success/error outside dialog
+if st.session_state.get("download_toast"):
+    st.toast(st.session_state.download_toast, icon="✅")
+    st.success(st.session_state.download_toast)
+    st.session_state.download_toast = None
+if st.session_state.get("download_error"):
+    st.error(st.session_state.download_error)
+    st.session_state.download_error = None
 
 
 # --------------------------------------------------------------------------- #
