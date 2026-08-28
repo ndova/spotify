@@ -329,15 +329,17 @@ def _pop_view() -> None:
     """Pop previous view state and restore it."""
     stack = st.session_state.get("view_stack", [])
     if not stack:
+        # fallback: reset both navigations
         st.session_state.current_view = "artists"
+        st.session_state.album_search_view = "album_results"
         return
     last = stack.pop()
     st.session_state.view_stack = stack
-    
+
     # restore depending on saved type
     view_type = last.get("view", "artists")
     st.session_state.current_view = view_type
-    
+
     if view_type == "artists":
         st.session_state.artist_results = last.get("artist_results", [])
         st.session_state.artist_query = last.get("artist_query", "")
@@ -349,6 +351,15 @@ def _pop_view() -> None:
         st.session_state.current_album_id = last.get("album_id", "")
         st.session_state.current_album_name = last.get("album_name", "")
         st.session_state.album_tracks = last.get("album_tracks", [])
+    elif view_type == "album_results":
+        st.session_state.album_search_view = "album_results"
+        st.session_state.album_results = last.get("album_results", [])
+        st.session_state.album_query = last.get("album_query", "")
+    elif view_type == "album_search_tracks":
+        st.session_state.album_search_view = "album_search_tracks"
+        st.session_state.album_search_album_id = last.get("album_id", "")
+        st.session_state.album_search_album_name = last.get("album_name", "")
+        st.session_state.album_search_tracks = last.get("album_tracks", [])
 
 
 def _show_artist_albums(artist_id: str, artist_name: str) -> None:
@@ -425,13 +436,67 @@ def _open_album_and_show(album: dict) -> None:
     _show_album_tracks(str(album_id), album_name)
 
 
-# Handler dedicated untuk menu "Cari album"
-# (view yang sama, tapi sinkron ke selected_album agar blok render di menu tersebut membaca hasil yang benar)
+# Handler dedicated untuk menu "Cari album" — view terpisah (menggantikan daftar album)
 def _show_album_search_tracks(album_id: str, album_name: str) -> None:
-    _show_album_tracks(album_id, album_name)
-    # sinkronkan ke state yang dibaca oleh bagian "Cari album"
+    # push view album_results
+    _push_view(
+        {
+            "view": "album_results",
+            "album_results": st.session_state.get("album_results", []),
+            "album_query": st.session_state.get("album_query", ""),
+        }
+    )
+    st.session_state.album_search_view = "album_search_tracks"
+    st.session_state.album_search_album_id = str(album_id)
+    st.session_state.album_search_album_name = album_name
+
+    # fetch tracks (reuse logic: cached + fallback)
+    tracks = get_album_tracks(str(album_id))
+    if not tracks:
+        try:
+            client = get_itunes_client()
+            direct = client.get_album_tracks(str(album_id))
+            if direct:
+                tracks = direct
+        except Exception as e:
+            st.session_state.last_album_fetch_error = str(e)
+    if not tracks and album_name:
+        try:
+            candidates = search_tracks(album_name, limit=200)
+            filtered = []
+            for t in candidates:
+                if (t.get("album") and album_name.lower() in t.get("album", "").lower()) or str(t.get("collectionId", "")) == str(album_id):
+                    filtered.append(t)
+            if filtered:
+                tracks = filtered
+        except Exception as e:
+            st.session_state.last_album_search_fallback_error = str(e)
+
+    st.session_state.album_search_tracks = tracks or []
+    st.session_state.last_album_fetch_info = {"album_id": str(album_id), "len": len(st.session_state.album_search_tracks)}
+
+    # sinkronkan juga ke selected_* untuk kompatibilitas lama
     st.session_state.selected_album = str(album_id)
     st.session_state.selected_album_name = album_name
+
+
+def _pop_album_search_view() -> None:
+    """Kembali dari album_search_tracks ke album_results."""
+    stack = st.session_state.get("view_stack", [])
+    # cari entry album_results terakhir dari stack
+    for idx in range(len(stack) - 1, -1, -1):
+        if stack[idx].get("view") == "album_results":
+            last = stack.pop(idx)
+            st.session_state.view_stack = stack
+            st.session_state.album_search_view = "album_results"
+            st.session_state.album_results = last.get("album_results", [])
+            st.session_state.album_query = last.get("album_query", "")
+            return
+    # fallback: gunakan _pop_view
+    _pop_view()
+    if st.session_state.get("album_search_view") != "album_search_tracks":
+        return
+    st.session_state.album_search_view = "album_results"
 
 
 def render_album_row(album: dict, key: str, *, view_prefix: str = "") -> None:
@@ -527,7 +592,7 @@ if menu == "Cari lagu":
 
 
 # --------------------------------------------------------------------------- #
-# 2) Cari album di iTunes
+# 2) Cari album di iTunes — view terpisah seperti Cari artis
 # --------------------------------------------------------------------------- #
 elif menu == "Cari album":
     st.subheader("Cari album di iTunes")
@@ -537,8 +602,26 @@ elif menu == "Cari album":
     with l_col:
         limit = st.slider("Jumlah album", 3, 20, 5, key="album_limit")
 
+    # simpan query/limit ke session agar view konsisten setelah navigasi
     if query:
-        albums = search_albums(query, limit)
+        st.session_state.album_query = query
+        st.session_state.album_limit = limit
+        # jika masih di view hasil, refresh hasil pencarian
+        if st.session_state.get("album_search_view", "album_results") == "album_results":
+            st.session_state.album_results = search_albums(query, limit)
+
+    # default view untuk menu ini
+    if "album_search_view" not in st.session_state:
+        st.session_state.album_search_view = "album_results"
+
+    # VIEW: daftar album (menggantikan dropdown lama)
+    if st.session_state.get("album_search_view", "album_results") == "album_results":
+        albums = st.session_state.get("album_results", [])
+        # jika belum ada tapi query ada, fetch sekarang (first load)
+        if not albums and st.session_state.get("album_query"):
+            albums = search_albums(st.session_state.album_query, st.session_state.get("album_limit", 5))
+            st.session_state.album_results = albums
+
         if albums:
             st.write(f"Ditemukan {len(albums)} album:")
             for album in albums:
@@ -548,47 +631,31 @@ elif menu == "Cari album":
                         f"album_{album.get('album_id', '')}",
                         view_prefix="album_search",
                     )
-
-            # Tampilkan lagu untuk album yang dipilih — prioritaskan state baru (current_view)
-            current_album_id = None
-            current_album_name = None
-
-            # Jika user klik dari Cari album, state disimpan via _show_album_search_tracks
-            if st.session_state.get("current_view") == "album_tracks" and st.session_state.get("current_album_id"):
-                current_album_id = st.session_state.get("current_album_id")
-                current_album_name = st.session_state.get("current_album_name")
-            elif st.session_state.get("selected_album"):
-                current_album_id = st.session_state.get("selected_album")
-                current_album_name = st.session_state.get("selected_album_name")
-
-            if current_album_id:
-                st.divider()
-                # Tombol kembali: reset kedua state agar daftar album kembali terlihat
-                if st.button("Kembali ke hasil album", icon=":material/arrow_back:", key="back_to_albums"):
-                    st.session_state.selected_album = ""
-                    st.session_state.selected_album_name = ""
-                    if st.session_state.get("current_view") == "album_tracks":
-                        _pop_view()
-                    st.rerun()
-
-                title = current_album_name or "Album"
-                st.subheader(f"Lagu dalam {title}")
-
-                # Ambil lagu dari state jika ada, fallback ke fetch langsung
-                album_tracks = st.session_state.get("album_tracks") if st.session_state.get("current_album_id") == current_album_id else None
-                if album_tracks is None:
-                    album_tracks = get_album_tracks(current_album_id)
-
-                if album_tracks:
-                    render_tracks(album_tracks, "alb_track")
-                else:
-                    st.info("Tidak ada lagu ditemukan untuk album ini.")
-                    # tampilkan info debug singkat
-                    last_err = st.session_state.get("last_album_fetch_error")
-                    if last_err:
-                        st.caption(f"Info: {str(last_err)[:200]}")
         else:
-            st.info("Tidak ada album untuk pencarian tersebut.")
+            if st.session_state.get("album_query"):
+                st.info("Tidak ada album untuk pencarian tersebut.")
+            else:
+                st.info("Ketik kata kunci untuk mencari album.")
+
+    # VIEW: lagu dalam album (menggantikan daftar album)
+    elif st.session_state.get("album_search_view") == "album_search_tracks":
+        st.button("Previous", on_click=_pop_album_search_view, icon=":material/arrow_back:", key="back_to_albums_new")
+        album_name = st.session_state.get("album_search_album_name", "Album")
+        st.subheader(f"Lagu dalam {album_name}")
+
+        album_tracks = st.session_state.get("album_search_tracks", [])
+        # fallback fetch jika state kosong (mis. direct navigation)
+        if not album_tracks and st.session_state.get("album_search_album_id"):
+            album_tracks = get_album_tracks(st.session_state.album_search_album_id)
+            st.session_state.album_search_tracks = album_tracks or []
+
+        if album_tracks:
+            render_tracks(album_tracks, "alb_search_track")
+        else:
+            st.info("Tidak ada lagu ditemukan untuk album ini.")
+            last_err = st.session_state.get("last_album_fetch_error")
+            if last_err:
+                st.caption(f"Info: {str(last_err)[:200]}")
 
 
 # --------------------------------------------------------------------------- #
