@@ -305,13 +305,9 @@ class AudioDownloader:
                                 print(f"  ⚠️  Verify MP4 tags failed: {e}")
                     except Exception as e:
                         print(f"  ⚠️  Could not add metadata: {e}")
-                    # ensure metadata completed by running focused fixer for the file
-                    try:
-                        fixer_res = self.fix_metadata_for_file(out_path)
-                        if fixer_res.get('status') != 'written':
-                            print(f"  ⚠️  fix_metadata_for_file reported: {fixer_res}")
-                    except Exception:
-                        pass
+                    # NOTE: Do NOT call fix_metadata_for_file here — it does filename-only search
+                    # and would overwrite correct enrichment with wrong match (e.g. Nala -> Juliana Jendo).
+                    # Metadata is already written via _add_metadata above with proper artist context.
                 except Exception as e:
                     print(f"  ⚠️  Error enriching metadata: {e}")
                 print(f"✅ Downloaded: {track_info.get('artist','unknown')} - {track_info.get('title','unknown')}")
@@ -609,31 +605,55 @@ class AudioDownloader:
 
             title = os.path.splitext(fname)[0]
             track_info = {'title': title}
-            # try iTunes search - handle title with parentheses for better matching
-            # e.g., "Sial (Acoustic Version)" -> search for "Sial"
-            search_title = title
-            if '(' in title:
-                search_title = title.split('(')[0].strip()
+            search_title = title.split('(')[0].strip() if '(' in title else title
+
+            # Try to read expected artist from existing file tags
+            expected_artist = ""
             try:
-                results_it = itc.search_tracks(search_title, limit=8)
+                ext2 = os.path.splitext(fname)[1].lower()
+                if ext2 in ('.m4a', '.mp4'):
+                    from mutagen.mp4 import MP4
+                    mp4_e = MP4(path)
+                    tags_e = mp4_e.tags or {}
+                    if '\xa9ART' in tags_e:
+                        expected_artist = str(tags_e.get('\xa9ART', [''])[0] or '')
+                elif ext2 == '.mp3':
+                    from mutagen.id3 import ID3
+                    try:
+                        id3_e = ID3(path)
+                        if 'TPE1' in id3_e:
+                            expected_artist = str(id3_e['TPE1'].text[0] or '') if id3_e['TPE1'].text else ''
+                    except Exception:
+                        pass
             except Exception:
-                results_it = []
-            match = None
-            # First try exact match
-            for r in results_it:
-                if r.get('title','').lower() == title.lower():
-                    match = r
-                    break
-            # Then try partial match (title contains search term)
-            if not match:
-                for r in results_it:
-                    if search_title.lower() in r.get('title','').lower() or r.get('title','').lower() in search_title.lower():
-                        match = r
-                        break
-            if not match and results_it:
-                match = results_it[0]
+                pass
+
+            # Search with artist-aware scoring
+            candidates = []
+            if expected_artist:
+                try:
+                    r = itc.search_tracks(f"{expected_artist} {search_title}", limit=6)
+                    if r:
+                        candidates.extend(r)
+                except Exception:
+                    pass
+            try:
+                r2 = itc.search_tracks(search_title, limit=8)
+                if r2:
+                    seen = set(x.get('track_id') for x in candidates)
+                    for x in r2:
+                        if x.get('track_id') not in seen:
+                            candidates.append(x)
+            except Exception:
+                pass
+
+            match = self._find_best_match(candidates, title, expected_artist or "")
+            if not match and candidates:
+                match = self._find_best_match(candidates, title, "")
+            if not match and candidates:
+                match = candidates[0]
+
             if match:
-                # Properly map all available metadata fields
                 track_info.update({
                     'title': match.get('title') or title,
                     'artist': match.get('artist'),
@@ -646,12 +666,11 @@ class AudioDownloader:
                     'duration': match.get('duration'),
                 })
 
-            # lyrics - fetch with clean artist/title
-            artist_for_lyrics = track_info.get('artist') or ''
+            # lyrics
+            artist_for_lyrics = track_info.get('artist') or expected_artist or ''
             title_for_lyrics = track_info.get('title') or title
             if artist_for_lyrics:
                 try:
-                    # Clean title for lyrics search (remove parenthetical)
                     lyrics_title = title_for_lyrics.split('(')[0].strip() if '(' in title_for_lyrics else title_for_lyrics
                     l = lc.fetch_lyrics(artist_for_lyrics, lyrics_title)
                     if l:
@@ -661,7 +680,6 @@ class AudioDownloader:
 
             try:
                 result = self._add_metadata(path, track_info)
-                # _add_metadata returns bool, check if successful
                 if result is True:
                     results.append({'file': fname, 'status': 'written'})
                 else:
@@ -671,10 +689,57 @@ class AudioDownloader:
 
         return results
 
-    def fix_metadata_for_file(self, file_path: str) -> dict:
+    def _find_best_match(self, candidates: list, want_title: str, want_artist: str = "") -> dict | None:
+        """Score candidates to find the best match using title + artist awareness.
+
+        Scoring:
+          title exact  +10, title partial +5
+          artist exact +20, artist partial +10
+        This prevents e.g. 'Nala' -> Juliana Jendo when expected artist is Tulus.
+        """
+        if not candidates:
+            return None
+        wt = (want_title or "").lower().strip()
+        wa = (want_artist or "").lower().strip()
+        # Clean parenthetical from want_title for scoring
+        wt_clean = wt.split('(')[0].strip() if '(' in wt else wt
+
+        def _score(c):
+            s = 0
+            t = (c.get('title') or '').lower().strip()
+            a = (c.get('artist') or '').lower().strip()
+            t_clean = t.split('(')[0].strip() if '(' in t else t
+
+            # Title scoring
+            if t == wt or t_clean == wt_clean:
+                s += 10
+            elif wt_clean in t or t_clean in wt_clean or wt_clean in t_clean or t in wt:
+                s += 5
+            # Artist scoring (high weight)
+            if wa:
+                if a == wa:
+                    s += 30
+                elif wa in a or a in wa:
+                    s += 20
+            return s
+
+        # If artist is known, prefer candidates matching that artist
+        # by filtering first, then scoring
+        best = max(candidates, key=_score)
+        best_score = _score(best)
+        # If artist was expected but best has score < 15 and artist doesn't match at all,
+        # it might still be wrong. But return best anyway — caller can decide.
+        if wa and best_score < 10:
+            # No good match for artist; try searching with artist+title
+            return None
+        return best
+
+    def fix_metadata_for_file(self, file_path: str, expected_artist: str = "") -> dict:
         """Enrich and write metadata for a single file. Returns result dict.
-        
-        Properly maps metadata to ensure correct tags are written.
+
+        If expected_artist is provided, search is artist-aware to avoid wrong matches
+        (e.g. 'Nala' alone matches Juliana Jendo, but 'Tulus Nala' correctly matches Tulus).
+        Also checks existing tags to avoid overwriting correct metadata.
         """
         itc = iTunesClient()
         lc = LyricsClient()
@@ -682,26 +747,60 @@ class AudioDownloader:
         title = os.path.splitext(fname)[0]
         track_info = {'title': title}
 
-        # try iTunes search - handle title with parentheses
-        search_title = title.split('(')[0].strip() if '(' in title else title
+        # ---- Step 1: Check existing tags — if already correct, don't overwrite ----
         try:
-            results_it = itc.search_tracks(search_title, limit=6)
+            ext = os.path.splitext(fname)[1].lower()
+            if ext in ('.m4a', '.mp4'):
+                from mutagen.mp4 import MP4
+                mp4 = MP4(file_path)
+                tags = mp4.tags or {}
+                has_title = '\xa9nam' in tags
+                has_artist = '\xa9ART' in tags
+                if has_title and has_artist:
+                    existing_artist = str(tags.get('\xa9ART', [''])[0] or '').lower()
+                    existing_title = str(tags.get('\xa9nam', [''])[0] or '').lower()
+                    # If existing tags already look correct and match expected, skip
+                    if expected_artist and expected_artist.lower() in existing_artist:
+                        return {'file': fname, 'status': 'skipped', 'reason': 'already correct'}
+                    if not expected_artist and existing_title == title.lower():
+                        # Has some tags, but we can't verify artist — still try to enrich
+                        pass
         except Exception:
-            results_it = []
-        match = None
-        # Exact match first
-        for r in results_it:
-            if r.get('title','').lower() == title.lower():
-                match = r
-                break
-        # Partial match fallback
-        if not match:
-            for r in results_it:
-                if search_title.lower() in r.get('title','').lower() or r.get('title','').lower() in search_title.lower():
-                    match = r
-                    break
-        if not match and results_it:
-            match = results_it[0]
+            pass
+
+        # ---- Step 2: Search — try artist-aware first, fallback to title-only ----
+        search_title = title.split('(')[0].strip() if '(' in title else title
+        candidates = []
+
+        # Try expected_artist + title first (most accurate)
+        if expected_artist:
+            try:
+                r = itc.search_tracks(f"{expected_artist} {search_title}", limit=6)
+                if r:
+                    candidates.extend(r)
+            except Exception:
+                pass
+
+        # Also search by title alone
+        try:
+            r2 = itc.search_tracks(search_title, limit=6)
+            if r2:
+                # Deduplicate by track_id
+                seen = set(x.get('track_id') for x in candidates)
+                for x in r2:
+                    if x.get('track_id') not in seen:
+                        candidates.append(x)
+        except Exception:
+            pass
+
+        # ---- Step 3: Pick best match using scoring ----
+        match = self._find_best_match(candidates, title, expected_artist or "")
+        # Fallback: if scoring rejected all (no artist match), use title scoring only
+        if not match and candidates:
+            match = self._find_best_match(candidates, title, "")
+        if not match and candidates:
+            match = candidates[0]
+
         if match:
             track_info.update({
                 'title': match.get('title') or title,
@@ -716,7 +815,7 @@ class AudioDownloader:
             })
 
         # lyrics
-        artist_for_lyrics = track_info.get('artist') or ''
+        artist_for_lyrics = track_info.get('artist') or expected_artist or ''
         title_for_lyrics = track_info.get('title') or title
         if artist_for_lyrics:
             try:
