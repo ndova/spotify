@@ -160,6 +160,24 @@ class AudioDownloader:
                         print(f"      matched -> {out_path}")
                         break
 
+            # Guard: if file ends with double extension like ".m4a.m4a", rename to single
+            if out_path and out_path.lower().endswith('.m4a.m4a'):
+                fixed = out_path[:-4]  # remove one ".m4a"
+                try:
+                    if not os.path.exists(fixed):
+                        os.rename(out_path, fixed)
+                        print(f"  -> fixed double extension: {out_path} -> {fixed}")
+                        out_path = fixed
+                    else:
+                        # target exists, remove the double one (keep original)
+                        try:
+                            os.remove(out_path)
+                        except Exception:
+                            pass
+                        out_path = fixed
+                except Exception as e:
+                    print(f"  ⚠️  Could not fix double extension: {e}")
+
             if out_path and os.path.exists(out_path):
                 # Coerce mismatched extension if needed (e.g., yt-dlp produced opus but we wanted m4a)
                 # If user requested m4a but we found mp3/opus, try to convert via ffmpeg to proper m4a
@@ -483,15 +501,25 @@ class AudioDownloader:
             return False
     
     def _safe_filename(self, filename: str) -> str:
-        """Convert string to safe filename"""
-        # Remove invalid characters
+        """Convert string to safe filename without duplicate extensions."""
+        # Strip any existing audio extension first to avoid double like "Song.m4a.m4a"
+        # (yt-dlp adds %(ext)s, so we only want the base name)
+        filename = filename.strip()
+        # Remove trailing dots/spaces first
+        filename = filename.rstrip('. ')
+        # If filename already ends with a known audio extension, strip it
+        lower = filename.lower()
+        for ext in ('.mp3', '.m4a', '.mp4', '.m4b', '.aac', '.wav', '.ogg', '.opus', '.flac'):
+            if lower.endswith(ext):
+                filename = filename[: -len(ext)]
+                lower = filename.lower()
+                break
+        # Now remove invalid characters
         invalid_chars = '<>:"/\\|?*'
         for char in invalid_chars:
             filename = filename.replace(char, '')
-        
-        # Remove trailing periods and spaces
+        # Remove trailing periods and spaces again
         filename = filename.rstrip('. ')
-        
         return filename
 
     def fix_all_metadata(self, force: bool = False) -> list:
