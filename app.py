@@ -177,21 +177,23 @@ div[data-testid="stExpander"] { background: var(--sp-card); border: 1px solid va
 @media (max-width: 1100px) { .sp-shell { grid-template-columns: 240px 1fr; } .sp-panel-right { display:none; } }
 @media (max-width: 760px) { .sp-shell { grid-template-columns: 1fr; } .sp-panel { min-height: auto; } }
 
-/* Full-width top bar (not fixed) — sits above sidebar/content naturally */
+/* Full-width top bar — fixed at top */
 .sp-topbar-fixed {
-  position: relative; height: 56px;
+  position: fixed; top: 0; left: 0; right: 0; height: 56px;
   background: #000; border-bottom: 1px solid rgba(255,255,255,0.06);
   display:flex; align-items:center; justify-content:space-between; gap:16px;
-  padding: 0 14px; z-index: 10;
-  margin: 0 -1rem; /* extend to full width */
+  padding: 0 14px; z-index: 1001;
 }
-/* Sidebar — allow collapse/expand; keep normal flow */
+.block-container { padding-top: 72px !important; }
+/* Sidebar — fixed below top bar, collapsible via toggle */
 section[data-testid="stSidebar"] {
-  visibility: visible;
+  top: 56px !important;
+  height: calc(100vh - 56px) !important;
+  background: #000 !important;
+  z-index: 999 !important;
 }
-
-/* Hide Streamlit chrome */
-header[data-testid="stHeader"] { visibility: hidden; height: 0; }
+/* Show the header so toggle button is visible */
+header[data-testid="stHeader"] { visibility: visible !important; height: auto !important; background: transparent !important; }
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none !important; }
