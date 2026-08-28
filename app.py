@@ -239,6 +239,13 @@ def get_album_tracks(album_id: str) -> list[dict]:
 def search_artists(query: str, limit: int) -> list[dict]:
     return get_itunes_client().search_artists(query, limit)
 
+def clear_artist_cache():
+    """Clear cached search_artists so updated cover logic takes effect."""
+    try:
+        search_artists.clear()
+    except Exception:
+        pass
+
 @st.cache_data(ttl=600, show_spinner="Memuat album artis...")
 def get_artist_albums(artist_id: str, limit: int) -> list[dict]:
     return get_itunes_client().get_artist_albums(artist_id, limit)
@@ -830,12 +837,12 @@ elif menu == "Cari artis":
                         cover = artist.get("cover_url")
                         if cover:
                             st.markdown(
-                                f'<div style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#181818;box-shadow:0 4px 16px rgba(0,0,0,0.4)"><img src="{cover}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>',
+                                f'<div style="width:56px;height:56px;border-radius:4px;overflow:hidden;background:#181818;box-shadow:0 4px 16px rgba(0,0,0,0.4)"><img src="{cover}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>',
                                 unsafe_allow_html=True,
                             )
                         else:
                             st.markdown(
-                                '<div style="width:56px;height:56px;border-radius:50%;background:#282828;display:flex;align-items:center;justify-content:center;color:#727272"><span class="material-symbols-rounded" style="font-size:28px;">person</span></div>',
+                                '<div style="width:56px;height:56px;border-radius:4px;background:#282828;display:flex;align-items:center;justify-content:center;color:#727272"><span class="material-symbols-rounded" style="font-size:28px;">person</span></div>',
                                 unsafe_allow_html=True,
                             )
                     with c1:
