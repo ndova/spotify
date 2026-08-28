@@ -35,14 +35,13 @@ st.markdown("""<style>
 }
 html, body, [class*="css"] { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 h1, h2, h3 { font-family: Montserrat, Inter, sans-serif; letter-spacing: -0.02em; }
-.block-container { padding-top: 1rem; padding-bottom: 2rem; max-width: 1180px; }
+.block-container { padding-top: 64px; padding-bottom: 5.5rem; max-width: 1360px; }
 a { color: var(--sp-green); }
 .material-symbols-rounded { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
 
-/* App background — Spotify dark gradient */
-.stApp {
-  background: linear-gradient(180deg, #1a1a1a 0%, #121212 40%, #000000 100%) !important;
-}
+/* Gap like Spotify app (8px outer padding, rounded panels) */
+.stApp { background: #000 !important; }
+section.main > div { padding-left: 8px !important; padding-right: 8px !important; }
 
 /* Hero — playlist header ala Spotify */
 .sv-hero {
@@ -139,10 +138,63 @@ div[data-testid="stExpander"] { background: var(--sp-card); border: 1px solid va
 
 /* Chips — Spotify pill subdued */
 .sv-chip { display:inline-flex; align-items:center; gap:6px; background: rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.10); color:#fff; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
+.sv-chip-active { background:#fff; color:#000; border-color:#fff; }
 .sv-chip-accent { background: var(--sp-green); border-color: var(--sp-green); color:#000; }
+/* Your Library sidebar polish */
+.sv-sidebar-pill { display:inline-flex; align-items:center; gap:6px; background:#1F1F1F; border:1px solid rgba(255,255,255,0.08); color:#fff; padding:6px 12px; border-radius:999px; font-size:12px; font-weight:600; }
+.sv-lib-chips { display:flex; gap:8px; margin: 12px 0; }
+.sv-lib-search { display:flex; align-items:center; gap:8px; padding: 8px 0; color:#B3B3B3; border-bottom: 1px solid transparent; }
+.sv-lib-list { display:flex; flex-direction:column; gap:2px; margin-top:8px; }
+.sv-lib-row { display:flex; gap:10px; align-items:center; padding:8px; border-radius:8px; }
+.sv-lib-row:hover { background:#1A1A1A; }
+.sv-lib-cover { width:44px; height:44px; border-radius:4px; background:#282828; display:flex; align-items:center; justify-content:center; color:#fff; overflow:hidden; flex-shrink:0; }
+.sv-lib-cover-liked { background: linear-gradient(135deg, #7B4DFF, #B388FF); }
+.sv-lib-meta { min-width:0; }
+.sv-lib-title { color:#fff; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sv-lib-sub { color:#B3B3B3; font-size:11px; }
+/* Main shell 3 panels */
+.sp-shell { display:grid; grid-template-columns: 280px 1fr 320px; gap:8px; align-items:start; }
+.sp-panel { background:#121212; border-radius:8px; border:1px solid rgba(255,255,255,0.06); overflow:hidden; min-height: 560px; }
+.sp-panel-main { padding: 12px; }
+.sp-panel-right { padding: 0; }
+.sp-filter-row { display:flex; gap:8px; margin-bottom:12px; }
+.sp-filter { background:#232323; color:#fff; border:1px solid rgba(255,255,255,0.06); padding:6px 12px; border-radius:999px; font-size:12px; font-weight:600; }
+.sp-filter-active { background:#fff; color:#000; }
+.sp-right-cover { width:100%; aspect-ratio: 1/1; overflow:hidden; background:#181818; }
+.sp-right-cover img { width:100%; height:100%; object-fit:cover; display:block; }
+/* Bottom player bar */
+.sp-player { position:fixed; left:8px; right:8px; bottom:8px; height:80px; background:#000; border:1px solid rgba(255,255,255,0.08); border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding: 10px 14px; z-index: 999; }
+.sp-player-left { display:flex; gap:10px; align-items:center; min-width:0; }
+.sp-player-cover { width:56px; height:56px; border-radius:4px; background:#181818; overflow:hidden; flex-shrink:0; }
+.sp-player-meta { min-width:0; }
+.sp-player-title { color:#fff; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sp-player-artist { color:#B3B3B3; font-size:11px; }
+.sp-player-center { display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; max-width:520px; }
+.sp-player-controls { display:flex; align-items:center; gap:12px; color:#B3B3B3; }
+.sp-player-controls .play { width:36px; height:36px; border-radius:50%; background:#fff; color:#000; display:flex; align-items:center; justify-content:center; }
+.sp-player-bar { width:100%; height:4px; background:#2A2A2A; border-radius:999px; position:relative; }
+.sp-player-bar > i { position:absolute; left:0; top:0; bottom:0; width:28%; background:#fff; border-radius:999px; }
+.sp-player-right { display:flex; gap:10px; align-items:center; color:#B3B3B3; }
+@media (max-width: 1100px) { .sp-shell { grid-template-columns: 240px 1fr; } .sp-panel-right { display:none; } }
+@media (max-width: 760px) { .sp-shell { grid-template-columns: 1fr; } .sp-panel { min-height: auto; } }
+
+/* Full-width fixed top bar */
+.sp-topbar-fixed {
+  position: fixed; top: 0; left: 0; right: 0; height: 56px;
+  background: #000; border-bottom: 1px solid rgba(255,255,255,0.06);
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  padding: 0 14px; z-index: 1000;
+}
+/* Push sidebar below top bar & hide collapse control */
+section[data-testid="stSidebar"] { top: 56px !important; height: calc(100vh - 56px) !important; }
+section[data-testid="stSidebar"] > div { padding-top: 8px !important; }
+button[data-testid="stSidebarCollapseButton"],
+[data-testid="collapsedControl"] { display: none !important; }
+/* Add top padding so content not hidden behind fixed bar */
+section.main > div { padding-top: 56px !important; }
 
 /* Hide Streamlit chrome */
-header[data-testid="stHeader"] { display: none; }
+header[data-testid="stHeader"] { visibility: hidden; height: 0; }
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none !important; }
@@ -665,12 +717,24 @@ def render_tracks(tracks: list[dict], key_prefix: str) -> None:
 # --------------------------------------------------------------------------- #
 with st.sidebar:
     st.markdown("""
-        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-            <div style="width:32px;height:32px;border-radius:50%;background:#1DB954;display:flex;align-items:center;justify-content:center;color:#000;font-weight:900; font-size:16px;">♫</div>
-            <div>
-                <div style="font-weight:800; font-size:15px; line-height:1; color:#fff; letter-spacing:-0.02em;">Spotify</div>
-                <div style="font-size:10px; color:#B3B3B3; letter-spacing:0.12em; text-transform:uppercase;">Downloader</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:28px;height:28px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;color:#000;font-weight:900;">♫</div>
+                <div style="font-weight:800; font-size:14px; color:#fff;">Your Library</div>
             </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <span class="sv-sidebar-pill"><span class="material-symbols-rounded" style="font-size:16px;">add</span> Create</span>
+                <span class="material-symbols-rounded" style="font-size:18px; color:#B3B3B3;">open_in_full</span>
+            </div>
+        </div>
+        <div class="sv-lib-chips">
+            <span class="sv-chip sv-chip-active">Artists</span>
+        </div>
+        <div class="sv-lib-search">
+            <span class="material-symbols-rounded" style="font-size:18px;">search</span>
+            <span style="flex:1"></span>
+            <span style="font-size:12px; color:#B3B3B3;">Recents</span>
+            <span class="material-symbols-rounded" style="font-size:18px;">list</span>
         </div>
     """, unsafe_allow_html=True)
     menu = st.radio(
@@ -678,7 +742,25 @@ with st.sidebar:
         ["Cari lagu", "Cari album", "Cari artis", "Tangga lagu"],
         label_visibility="collapsed",
     )
-    st.markdown("<div style='margin-top:10px; padding:10px 12px; background:#181818; border-radius:8px; border:1px solid rgba(255,255,255,0.06);'><div style='color:#fff; font-weight:600; font-size:12px; margin-bottom:4px;'><span class='material-symbols-rounded' style='font-size:14px; vertical-align:middle;'>lightbulb</span> Tips</div><div style='font-size:11px; color:#B3B3B3; line-height:1.4;'>Gunakan kata kunci spesifik untuk hasil lebih akurat.</div></div>", unsafe_allow_html=True)
+    # Your Library list — mimic SS: liked songs + sample artists from downloads / recent searches
+    st.markdown('<div class="sv-lib-list">', unsafe_allow_html=True)
+    # Liked Songs static row
+    st.markdown("""
+        <div class="sv-lib-row sv-lib-row-liked">
+            <div class="sv-lib-cover sv-lib-cover-liked"><span class="material-symbols-rounded">favorite</span></div>
+            <div class="sv-lib-meta"><div class="sv-lib-title">Liked Songs</div><div class="sv-lib-sub">Playlist • 1 song</div></div>
+        </div>
+    """, unsafe_allow_html=True)
+    # Derive artists from downloads or last searches
+    try:
+        import os
+        _dl_files = os.listdir(Config.DOWNLOAD_PATH) if os.path.isdir(Config.DOWNLOAD_PATH) else []
+    except Exception:
+        _dl_files = []
+    _artists_seed = ["Reza Artamevia", "Chrisye", "Yovie Widianto"]
+    for _a in _artists_seed[:4]:
+        st.markdown(f'<div class="sv-lib-row"><div class="sv-lib-cover"><span class="material-symbols-rounded">person</span></div><div class="sv-lib-meta"><div class="sv-lib-title">{_a}</div><div class="sv-lib-sub">Artist</div></div></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     st.divider()
     if st.button("🧹 Bersihkan cache", key="clear_cache_btn"):
         try:
@@ -718,11 +800,7 @@ def _on_global_search():
 # Style it to match SS: dark pill #2A2A2A/#242424, height 48px
 st.markdown("""
 <style>
-/* Single unified top bar container — pill centered between left cluster and right actions */
-.sp-topbar-wrap {
-  display:flex; align-items:center; justify-content:space-between; gap:16px;
-  margin: 6px 0 14px 0;
-}
+/* Top bar content layout inside the fixed bar */
 .sp-topbar-left { display:flex; align-items:center; gap:12px; flex: 0 0 auto; }
 .sp-logo {
   width:32px; height:32px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center;
@@ -766,8 +844,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Single top bar: left logo+home | centered pill (with real widget inside) | right actions — no column gaps
-st.markdown('<div class="sp-topbar-wrap"><div class="sp-topbar-left"><div class="sp-logo">♫</div><div class="sp-home"><span class="material-symbols-rounded">home</span></div></div><div class="sp-pill-outer"><div class="sp-pill"><span class="material-symbols-rounded icon">search</span>', unsafe_allow_html=True)
+# Fixed full-width top bar (spans entire width, sidebar sits below it)
+st.markdown('<div class="sp-topbar-fixed"><div class="sp-topbar-left"><div class="sp-logo">♫</div><div class="sp-home"><span class="material-symbols-rounded">home</span></div></div><div class="sp-pill-outer"><div class="sp-pill"><span class="material-symbols-rounded icon">search</span>', unsafe_allow_html=True)
 st.text_input(
     "global_search_input",
     key="global_search_input",
@@ -809,33 +887,118 @@ if st.session_state.get("download_error"):
 # 1) Cari lagu di iTunes
 # --------------------------------------------------------------------------- #
 if menu == "Cari lagu":
-    st.subheader("Cari lagu di iTunes")
-    # Global pill search (like SS) feeds into this menu: if set, use it as default
-    initial_q = st.session_state.get("global_search", "") if st.session_state.get("global_search") else ""
-    initial_lim = st.session_state.get("global_search_limit", 10)
-    # Keep legacy controls but sync with global pill if present
-    q_col, l_col = st.columns([3, 1])
-    with q_col:
-        # Use global_search as session key if user typed in pill; still allow typing here
-        query = st.text_input("Judul lagu atau artis", value=initial_q, key="song_query", placeholder="mis. The Beatles", on_change=lambda: st.session_state.update({"global_search": st.session_state.get("song_query","")}))
-    with l_col:
-        limit = st.slider("Jumlah hasil", 5, 50, initial_lim, key="song_limit")
-        # keep global limit synced
-        if limit != st.session_state.get("global_search_limit", initial_lim):
-            st.session_state.global_search_limit = limit
+    # Wrapped in main panel — opened before; content inside sp-panel-main
+    st.markdown('<div class="sp-shell">', unsafe_allow_html=True)
+    # We render the whole 3-column shell via columns so right/left panels are not sidebar
+    # Use st.columns for layout stability
+    col_left_dummy, col_main, col_right = st.columns([0, 7, 3], vertical_alignment="top", gap="small")
+    # Left is handled by st.sidebar (Your Library) — no duplicate here
+    with col_main:
+        st.markdown('<div class="sp-panel sp-panel-main">', unsafe_allow_html=True)
 
-    # Prefer global_search if set and query empty (first load after pill)
-    if not query and initial_q:
-        query = initial_q
-    if query:
-        tracks = search_tracks(query, limit)
-        if tracks:
-            st.write(f"Ditemukan {len(tracks)} lagu:")
-            for i, track in enumerate(tracks):
-                with st.container(border=True):
-                    render_track_row(track, f"track_{i}_{track.get('track_id', '')}")
+        # Filter pills like SS: All / Music / Podcasts
+        f1, f2, f3 = st.columns([0.18, 0.2, 0.6])
+        with f1:
+            st.markdown('<span class="sp-filter sp-filter-active">All</span>', unsafe_allow_html=True)
+        with f2:
+            st.markdown('<span class="sp-filter">Music</span>', unsafe_allow_html=True)
+        with f3:
+            st.markdown('<span class="sp-filter">Podcasts</span>', unsafe_allow_html=True)
+
+        # Global pill search feeds into this menu
+        initial_q = st.session_state.get("global_search", "") if st.session_state.get("global_search") else ""
+        initial_lim = st.session_state.get("global_search_limit", 10)
+        q_col, l_col = st.columns([3, 1])
+        with q_col:
+            query = st.text_input("Judul lagu atau artis", value=initial_q, key="song_query", placeholder="mis. The Beatles", on_change=lambda: st.session_state.update({"global_search": st.session_state.get("song_query","")}))
+        with l_col:
+            limit = st.slider("Jumlah hasil", 5, 50, initial_lim, key="song_limit")
+            if limit != st.session_state.get("global_search_limit", initial_lim):
+                st.session_state.global_search_limit = limit
+        if not query and initial_q:
+            query = initial_q
+
+        if query:
+            tracks = search_tracks(query, limit)
+            if tracks:
+                # Section header like SS: Getting started / It's New Music...
+                st.markdown("""
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin: 12px 0 10px 0;">
+                        <div style="color:#fff; font-weight:800; font-size:16px;">Hasil pencarian</div>
+                        <div style="color:#B3B3B3; font-size:12px;">Show all</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                for i, track in enumerate(tracks):
+                    with st.container(border=True):
+                        render_track_row(track, f"track_{i}_{track.get('track_id', '')}")
+                    # Also update right panel preview to first result
+                    if i == 0:
+                        st.session_state.sp_now_playing = track
+            else:
+                st.info("Tidak ada hasil untuk pencarian tersebut.")
         else:
-            st.info("Tidak ada hasil untuk pencarian tersebut.")
+            # Empty state: mimic SS Getting started card
+            st.markdown("""
+                <div style="background: linear-gradient(135deg, #7A5A00, #3A2E00); border-radius:12px; padding:18px; display:flex; gap:16px; align-items:center;">
+                    <div style="flex:1;">
+                        <div style="color:#fff; font-weight:800; font-size:22px;">1. Start playing</div>
+                        <div style="color:#F1E6B8; font-size:12px; margin-top:6px;">Search, browse, and play your favorite artists and creators.</div>
+                        <div style="margin-top:12px; display:flex; gap:8px;"><span style="background:#1DB954; color:#000; padding:8px 16px; border-radius:999px; font-weight:800; font-size:12px;">Search</span><span style="color:#F1E6B8; font-size:12px; align-self:center;">Show more tips</span></div>
+                    </div>
+                    <div style="width:160px; height:110px; background:#1A1A1A; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#B3B3B3; font-size:11px;">Artwork</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin: 18px 0 8px 0;"><div style="color:#fff; font-weight:800;">It's New Music...</div><div style="color:#B3B3B3; font-size:12px;">Show all</div></div>
+                <div style="color:#727272; font-size:12px;">Cari lagu di atas untuk melihat rekomendasi.</div>
+            """, unsafe_allow_html=True)
+
+        # Made For footer inside main
+        st.markdown("""
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:18px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
+                <div><div style="color:#B3B3B3; font-size:11px;">Made For</div><div style="color:#fff; font-weight:800; font-size:16px;">Ndov</div></div>
+                <div style="color:#B3B3B3; font-size:12px;">Show all</div>
+            </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)  # close sp-panel-main
+
+    with col_right:
+        st.markdown('<div class="sp-panel sp-panel-right">', unsafe_allow_html=True)
+        now = st.session_state.get("sp_now_playing") or {}
+        cover_now = now.get("cover_url") or "https://via.placeholder.co/320?text=♪"
+        title_now = now.get("title") or "Rangga Cinta (Theme Song 'Rangga & Cinta')"
+        artists_now = now.get("artist") or "Eva Celia, Bilal Indrajaya"
+        st.markdown(f'''
+            <div class="sp-right-cover"><img src="{cover_now}" /></div>
+            <div style="padding:12px;">
+                <div style="color:#fff; font-weight:700; font-size:14px; line-height:1.3;">{title_now}</div>
+                <div style="color:#B3B3B3; font-size:12px;">{artists_now}</div>
+                <div style="margin-top:10px; padding:10px; background:#1A1A1A; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+                    <div style="color:#fff; font-weight:700; font-size:12px;">About the artist</div>
+                    <div style="color:#B3B3B3; font-size:11px; margin-top:4px;">Pilih lagu di tengah untuk melihat detail dan lirik.</div>
+                </div>
+            </div>
+        ''', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)  # close sp-shell
+
+    # Bottom player bar — fixed, always visible like SS
+    _pl_cover = (st.session_state.get("sp_now_playing") or {}).get("cover_url") or ""
+    _pl_title = (st.session_state.get("sp_now_playing") or {}).get("title") or "Rangga Cinta - Theme Song 'Rangga & Cinta'"
+    _pl_artist = (st.session_state.get("sp_now_playing") or {}).get("artist") or "Eva Celia, Bilal Indrajaya"
+    st.markdown(f"""
+        <div class="sp-player">
+            <div class="sp-player-left">
+                <div class="sp-player-cover">{f'<img src="{_pl_cover}" style="width:100%;height:100%;object-fit:cover;display:block;" />' if _pl_cover else '♪'}</div>
+                <div class="sp-player-meta"><div class="sp-player-title">{_pl_title}</div><div class="sp-player-artist">{_pl_artist}</div></div>
+                <span class="material-symbols-rounded" style="color:#B3B3B3;">add_circle</span>
+            </div>
+            <div class="sp-player-center">
+                <div class="sp-player-controls"><span class="material-symbols-rounded">shuffle</span><span class="material-symbols-rounded">skip_previous</span><span class="play"><span class="material-symbols-rounded" style="font-size:20px;">play_arrow</span></span><span class="material-symbols-rounded">skip_next</span><span class="material-symbols-rounded">repeat</span></div>
+                <div style="display:flex; gap:8px; align-items:center; width:100%;"><span style="color:#B3B3B3; font-size:11px;">3:13</span><div class="sp-player-bar"><i></i></div><span style="color:#B3B3B3; font-size:11px;">3:58</span></div>
+            </div>
+            <div class="sp-player-right"><span class="material-symbols-rounded">mic</span><span class="material-symbols-rounded">queue_music</span><span class="material-symbols-rounded">volume_up</span><span class="material-symbols-rounded">open_in_full</span></div>
+        </div>
+    """, unsafe_allow_html=True)
 
 
 # --------------------------------------------------------------------------- #
