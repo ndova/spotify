@@ -85,47 +85,15 @@ div[data-testid="stExpander"] { border: 1px solid var(--sv-border); border-radiu
 /* Badge chips light */
 .sv-chip { display:inline-flex; align-items:center; gap:6px; background:#F1F5F9; border:1px solid #E2E8F0; color:#334155; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
 .sv-chip-accent { background:#EEF2FF; border-color:#C7D2FE; color:#3730A3; }
+/* Hide Streamlit chrome: Deploy button, header, footer */
+header[data-testid="stHeader"] { display: none; }
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+[data-testid="stToolbar"] { display: none !important; }
+[data-testid="stDeployButton"] { display: none !important; }
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,-50..200" />
 """, unsafe_allow_html=True)
-
-# Debug panel sementara untuk membantu tracing klik tombol
-with st.sidebar.expander("Debug (dev)", expanded=False):
-    debug_info = {
-        "modal_artist_id": st.session_state.get("modal_artist_id"),
-        "modal_artist_name": st.session_state.get("modal_artist_name"),
-        "modal_album_id": st.session_state.get("modal_album_id"),
-        "modal_album_name": st.session_state.get("modal_album_name"),
-        "artist_results_len": len(st.session_state.get("artist_results", [])),
-    }
-    
-    # show last preview debug info if available (but don't expose raw bytes)
-    last_preview = st.session_state.get("last_preview_info")
-    if last_preview:
-        debug_info["last_preview_url"] = last_preview.get("url")
-        debug_info["last_preview_len"] = last_preview.get("len")
-    last_err = st.session_state.get("last_preview_error")
-    
-    # render structured debug info
-    # include last clicked album for debugging
-    last_clicked = st.session_state.get("last_clicked_album")
-    if last_clicked:
-        debug_info['last_clicked_album_keys'] = list(last_clicked.keys())
-    
-    debug_info['last_album_fetch_info'] = st.session_state.get('last_album_fetch_info')
-    debug_info['last_album_fetch_error'] = st.session_state.get('last_album_fetch_error')
-    
-    debug_info['last_top_songs_error'] = st.session_state.get('last_top_songs_error')
-    debug_info['last_top_songs_diag'] = st.session_state.get('last_top_songs_diag')
-    
-    st.json(debug_info)
-    
-    # render preview error separately and user-friendly
-    if last_err:
-        err_msg = str(last_err)
-        if len(err_msg) > 300:
-            err_msg = err_msg[:300] + "..."
-        st.error(f"Preview error: {err_msg}")
 # Klien (di-cache agar tidak dibuat ulang setiap rerun)
 @st.cache_resource(show_spinner=False)
 def get_itunes_client() -> iTunesClient:
