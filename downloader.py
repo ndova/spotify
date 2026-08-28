@@ -251,7 +251,9 @@ class AudioDownloader:
                     search_title = track_info.get('title', '')
                     if '(' in search_title:
                         search_title = search_title.split('(')[0].strip()
-                    if missing_keys or not track_info.get('release_date'):
+                    # Check if enrichment is needed
+                    needs_enrich = any(not track_info.get(k) for k in ('cover_url', 'album', 'genre')) or not track_info.get('release_date')
+                    if needs_enrich:
                         try:
                             itc = iTunesClient()
                             q = f"{search_artist} {search_title}".strip()
