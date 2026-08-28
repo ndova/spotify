@@ -840,26 +840,53 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Top bar — single container with pill containing the input (no split HTML)
-with st.container():
-    st.markdown('<div class="sp-topbar-fixed"><div class="sp-topbar-left"><div class="sp-logo">♫</div><div class="sp-home"><span class="material-symbols-rounded">home</span></div></div><div class="sp-pill-outer"><div class="sp-pill-inner">', unsafe_allow_html=True)
-    # Use columns inside the pill area: search icon | input | divider | browse
-    p1, p2, p3, p4 = st.columns([0.15, 5, 0.15, 0.4], vertical_alignment="center", gap="small")
-    with p1:
-        st.markdown('<span class="material-symbols-rounded icon" style="color:#B3B3B3; font-size:20px;">search</span>', unsafe_allow_html=True)
-    with p2:
-        st.text_input(
-            "global_search_input",
-            key="global_search_input",
-            placeholder="What do you want to play?",
-            label_visibility="collapsed",
-            on_change=_on_global_search,
-        )
-    with p3:
-        st.markdown('<span class="sp-divider"></span>', unsafe_allow_html=True)
-    with p4:
-        st.markdown('<span class="material-symbols-rounded icon" style="color:#B3B3B3; font-size:20px;">browse</span>', unsafe_allow_html=True)
-    st.markdown('</div></div><div class="sp-topbar-right"><button class="sp-btn">Explore Premium</button><span class="sp-icon-btn"><span class="material-symbols-rounded" style="font-size:18px;">download</span></span><span class="sp-icon-btn"><span class="material-symbols-rounded">notifications</span></span><span class="sp-icon-btn"><span class="material-symbols-rounded">groups</span></span><span class="sp-avatar">N</span></div></div>', unsafe_allow_html=True)
+# Top bar — single HTML pill with inline input (no st.columns split)
+st.markdown("""
+<div class="sp-topbar-fixed">
+  <div class="sp-topbar-left"><div class="sp-logo">♫</div><div class="sp-home"><span class="material-symbols-rounded">home</span></div></div>
+  <div class="sp-pill-outer"><div class="sp-pill-inner" id="sp-pill">""", unsafe_allow_html=True)
+st.text_input(
+    "global_search_input",
+    key="global_search_input",
+    placeholder="What do you want to play?",
+    label_visibility="collapsed",
+    on_change=_on_global_search,
+)
+st.markdown("""
+  </div></div>
+  <div class="sp-topbar-right"><button class="sp-btn">Explore Premium</button><span class="sp-icon-btn"><span class="material-symbols-rounded" style="font-size:18px;">download</span></span><span class="sp-icon-btn"><span class="material-symbols-rounded">notifications</span></span><span class="sp-icon-btn"><span class="material-symbols-rounded">groups</span></span><span class="sp-avatar">N</span></div>
+</div>
+<script>
+// Move the Streamlit text_input into the pill without using st.columns
+(function(){
+  const pill = document.getElementById('sp-pill');
+  if(!pill) return;
+  // Find the global_search_input widget (last rendered)
+  const inputs = Array.from(parent.document.querySelectorAll('input[placeholder=\"What do you want to play?\"]'));
+  const inp = inputs[inputs.length-1];
+  if(!inp) return;
+  const wrapper = inp.closest('[data-testid=\"stTextInput\"]');
+  if(!wrapper) return;
+  // Icons
+  const searchIcon = document.createElement('span');
+  searchIcon.className = 'material-symbols-rounded icon';
+  searchIcon.textContent = 'search';
+  searchIcon.style.cssText = 'color:#B3B3B3; font-size:20px; flex-shrink:0;';
+  const divider = document.createElement('span');
+  divider.className = 'sp-divider';
+  const browseIcon = document.createElement('span');
+  browseIcon.className = 'material-symbols-rounded icon';
+  browseIcon.textContent = 'browse';
+  browseIcon.style.cssText = 'color:#B3B3B3; font-size:20px; flex-shrink:0;';
+  pill.prepend(searchIcon);
+  pill.appendChild(divider);
+  pill.appendChild(browseIcon);
+  // Move wrapper into pill (between icons)
+  divider.before(wrapper);
+  wrapper.style.flex = '1';
+})();
+</script>
+""", unsafe_allow_html=True)
 
 HERO_TITLE = {
     "Cari lagu": ("Cari Lagu", "Temukan track favorit, preview 30 detik, dan unduh instan.", "search"),
